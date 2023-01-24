@@ -25,13 +25,13 @@ async def test_uhal_wrapper():
         nodes = np.append(nodes,wrapper.get_ual_node(hw =hw, registerName = "reg"+str(i)))
         await wrapper.read_uhal_message(hw = hw, node =nodes[i], registerName="reg"+str(i), timeout=timeout)
     print ("=========================Write Reg================================")
-    while i<=100:
-        await wrapper.write_uhal_mopshub_message(hw =hw, data=[0x600debea,0xdef00bea,0xdde00001,0xdde00000], reg = ["reg6","reg7","reg8","reg8"], timeout=timeout)#0xAAAAAAAA
+    while i<=2:
+        await wrapper.write_uhal_mopshub_message(hw =hw, data=[0x600debea,0xdef00bea,0xdde00001,0xdde00001], reg = ["reg6","reg7","reg8","reg8"], timeout=timeout)#0xAAAAAAAA
         time.sleep(1)
         i = i+1
     await wrapper.read_uhal_mopshub_message(hw =hw, reg = ["reg0","reg1","reg2"], timeout=timeout)   
     await wrapper.read_uhal_mopshub_message(hw =hw, reg = ["reg3","reg4","reg5"], timeout=timeout)  
-    #await  wrapper.read_uhal_mopshub_message(hw =hw, reg = ["reg6","reg7","reg8"], timeout=timeout) 
+    await  wrapper.read_uhal_mopshub_message(hw =hw, reg = ["reg6","reg7","reg8"], timeout=timeout) 
 
 if __name__ == '__main__':
     # PART 1: Argument parsing

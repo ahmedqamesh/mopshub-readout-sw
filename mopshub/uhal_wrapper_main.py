@@ -108,7 +108,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         print ("%s Value ="%registerName, hex(reg_value.value())) 
         return reg_value
 
-    async def write_uhal_message(self, node =None, data=None, registerName=None, timeout=None):
+    async def write_uhal_message(self,hw =None, node =None, data=None, registerName=None, timeout=None):
         print ("Writing %s to register %s"%(hex(data),registerName))
         node.write(data)
         hw.dispatch()
@@ -120,8 +120,8 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
     async def write_uhal_mopshub_message(self, hw =None, data=None,reg =None, timeout=None):
         print ("Writing data to registers %s"%reg)
         nodes = []
-        for r in reg: nodes = np.append(nodes,get_ual_node(hw =hw, registerName = r))
-        [await write_uhal_message(node =nodes[data.index(d)], data=d, registerName=r, timeout=timeout) for r,d in zip(nodes,data)]
+        for r in reg: nodes = np.append(nodes,self.get_ual_node(hw =hw, registerName = r))
+        [await self.write_uhal_message(hw =hw,node =nodes[data.index(d)], data=d, registerName=r, timeout=timeout) for r,d in zip(nodes,data)]
         return True
     
     async def build_uhal_mopshub_message(self, reg =[]):
@@ -143,17 +143,14 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         old_Bytes[6] = reg_values[1][7:9]
         old_Bytes[7] = reg_values[1][9:11]+reg_values[2][2:3]
         old_Bytes[8] = reg_values[2][3:5]
-    
         
         new_Bytes[0] = reg_values[0][2:5]
         new_Bytes[1] = reg_values[0][5:7]
         new_Bytes[2] = reg_values[0][9:11]+reg_values[1][2:3]
         new_Bytes[3] = reg_values[0][7:9]
         new_Bytes[4] = reg_values[1][3:5]   
-        
         new_Bytes[5] = reg_values[2][3:5]
         new_Bytes[6] = reg_values[1][9:11]+reg_values[2][2:3]
-        
         new_Bytes[7] = reg_values[1][7:9]
         new_Bytes[8] = reg_values[1][5:7]
         print("Arrange", old_Bytes, "into", new_Bytes)        
@@ -170,7 +167,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
             time.sleep(timeout)
             print ("%s Value ="%r, hex(reg_value.value())) 
             reg_values = np.append(reg_values,hex(reg_value.value()))
-        self.build_uhal_mopshub_message(reg = reg_values )
+        await self.build_uhal_mopshub_message(reg = reg_values )
         return True
 
     def set_channel_connection(self, interface=None):
