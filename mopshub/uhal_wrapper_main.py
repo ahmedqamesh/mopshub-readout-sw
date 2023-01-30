@@ -17,6 +17,7 @@ from typing import *
 import time
 import datetime
 #import numba
+import asyncio
 import sys
 import os
 from threading import Thread, Event, Lock
@@ -25,7 +26,7 @@ import threading
 import numpy as np
 from logger_main   import Logger
 from analysis_utils import AnalysisUtils
-  
+import struct
 # Third party modules
 from collections import deque, Counter
 from tqdm import tqdm
@@ -35,7 +36,7 @@ import queue
 from bs4 import BeautifulSoup #virtual env
 from typing import List, Any
 from random import randint
-
+from asyncio.tasks import sleep
 import uhal
 #from csv import writer
 logger = Logger().setup_main_logger(name = " Lib Check ",console_loglevel=logging.INFO, logger_file = False)
@@ -49,6 +50,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
     def __init__(self,
                  file_loglevel=logging.INFO, 
                  logdir=None,load_config = False, 
+                 logfile = None,
                  console_loglevel=logging.INFO):
        
         super(UHALWrapper, self).__init__()  # super keyword to call its methods from a subclass:        
@@ -61,18 +63,23 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         """:obj:`~logging.Logger`: Main logger for this class"""
         if logdir is None:
             #'Directory where log files should be stored'
-            logdir = os.path.join(lib_dir, 'log')
-                            
-        ts = os.path.join(logdir, time.strftime('%Y-%m-%d_%H-%M-%S_CAN_Wrapper.'))
+            logdir = os.path.join(lib_dir, 'log')                 
         self.logger = Logger().setup_main_logger(name = "UHAL Wrapper",console_loglevel=console_loglevel, logger_file = False)
-        self.logger_file = Logger().setup_file_logger(name = "UHALWrapper",console_loglevel=console_loglevel, logger_file = ts)#for later usage
-        self.logger.info(f'Existing logging Handler: {ts}'+'log')
+        
         if load_config:
            # Read CAN settings from a file 
             self.__uri, self.__addressFilePath =   self.load_settings_file()          
 
+        # Initialize library and set connection parameters
+        self.__cnt = Counter()
+        self.error_counter = 0
+        
         self.logger.success('....Done Initialization!')
-        self.logger_file.success('....Done Initialization!')
+        if logfile is not None:
+            ts = os.path.join(logdir, time.strftime('%Y-%m-%d_%H-%M-%S_UHAL_Wrapper.'))
+            self.logger.info(f'Existing logging Handler: {ts}'+'log')
+            self.logger_file = Logger().setup_file_logger(name = "UHALWrapper",console_loglevel=console_loglevel, logger_file = ts)#for later usage
+            self.logger_file.success('....Done Initialization!')
                     
     def config_uhal_hardware(self, uri = None, addressFilePath = None):
         if uri is None:
@@ -91,7 +98,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         filename = os.path.join(lib_dir, config_dir + "main_settings.yml")
         test_date = time.ctime(os.path.getmtime(filename))
         # Load settings from CAN settings file
-        self.logger.notice("Loading CAN settings from the file %s produced on %s" % (filename, test_date))
+        self.logger.notice("Loading bus settings from the file %s produced on %s" % (filename, test_date))
         try:
             _channelSettings = AnalysisUtils().open_yaml_file(file=config_dir + "main_settings.yml", directory=lib_dir)
             _uri = _channelSettings['ethernet']["uri"]
@@ -108,8 +115,8 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         print ("%s Value ="%registerName, hex(reg_value.value())) 
         return reg_value
 
-    async def write_uhal_message(self,hw =None, node =None, data=None, registerName=None, timeout=None):
-        print ("Writing %s to register %s"%(hex(data),registerName))
+    async def write_uhal_message(self,hw =None, node =None, data=None, registerName=None, timeout=None, msg = True ):
+        if msg : print ("Writing %s to register %s"%(hex(data),registerName))
         node.write(data)
         hw.dispatch()
         time.sleep(timeout)
@@ -117,14 +124,14 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
 
 
 
-    async def write_uhal_mopshub_message(self, hw =None, data=None,reg =None, timeout=None):
-        print ("Writing data to registers %s"%reg)
+    async def write_uhal_mopshub_message(self, hw =None, data=None,reg =None, timeout=None, msg= True):
+        if msg: print ("Writing data to registers %s"%reg)
         nodes = []
         for r in reg: nodes = np.append(nodes,self.get_ual_node(hw =hw, registerName = r))
-        [await self.write_uhal_message(hw =hw,node =nodes[data.index(d)], data=d, registerName=r, timeout=timeout) for r,d in zip(nodes,data)]
+        [await self.write_uhal_message(hw =hw,node =nodes[data.index(d)], data=d, registerName=r, timeout=timeout, msg=msg) for r,d in zip(nodes,data)]
         return True
     
-    async def build_uhal_mopshub_message(self, reg =[]):
+    async def build_uhal_mopshub_message(self, reg =[], msg = True):
         reg_values = []
         old_Bytes = [0 for b in np.arange(9)]    
         new_Bytes = [0 for b in np.arange(9)]    
@@ -143,9 +150,8 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         old_Bytes[6] = reg_values[1][7:9]
         old_Bytes[7] = reg_values[1][9:11]+reg_values[2][2:3]
         old_Bytes[8] = reg_values[2][3:5]
-        
+    
         new_Bytes[0] = reg_values[0][2:5]
-        new_Bytes[1] = reg_values[0][5:7]
         new_Bytes[2] = reg_values[0][9:11]+reg_values[1][2:3]
         new_Bytes[3] = reg_values[0][7:9]
         new_Bytes[4] = reg_values[1][3:5]   
@@ -153,10 +159,14 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         new_Bytes[6] = reg_values[1][9:11]+reg_values[2][2:3]
         new_Bytes[7] = reg_values[1][7:9]
         new_Bytes[8] = reg_values[1][5:7]
-        print("Arrange", old_Bytes, "into", new_Bytes)        
-        return new_Bytes
+        cobid = new_Bytes[0] 
+        for i in range(len(old_Bytes)): 
+            if new_Bytes[i] =='': new_Bytes[i]=0    
+        if msg: print("Arrange", old_Bytes, "into", new_Bytes)   
+        else:   print("Arrange", old_Bytes, "into", new_Bytes) #print(new_Bytes)   
+        return cobid, new_Bytes
             
-    async def read_uhal_mopshub_message(self, hw =None, reg =None, timeout=None):
+    async def read_uhal_mopshub_message(self, hw =None, reg =None, timeout=None, msg = True):
         nodes = []
         reg_values = []
         Bytes = [0 for b in np.arange(9)]
@@ -165,10 +175,10 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
             reg_value = nodes[reg.index(r)].read()
             hw.dispatch()
             time.sleep(timeout)
-            print ("%s Value ="%r, hex(reg_value.value())) 
+            if msg: print ("read %s Value ="%r, hex(reg_value.value())) 
             reg_values = np.append(reg_values,hex(reg_value.value()))
-        await self.build_uhal_mopshub_message(reg = reg_values )
-        return True
+        cobid , data = await self.build_uhal_mopshub_message(reg = reg_values ,msg=msg)
+        return cobid , data
 
     def set_channel_connection(self, interface=None):
         """
@@ -281,11 +291,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         pbar.close()
         self.logger.notice("MOPSHUB data are saved to %s/%s" % (outputdir,outputname))
             
-    
-    
-    
-    
-    async def read_adc_channels(self, file, directory , nodeId, outputname, outputdir, n_readings):
+    async def read_adc_channels(self, hw, file, directory , nodeId, outputname, outputdir, n_readings):
         """Start actual CANopen communication
         This function contains an endless loop in which it is looped over all
         ADC channels. Each value is read using
@@ -307,25 +313,27 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
             for c in tqdm(np.arange(len(_channelItems))):
                 channel =  _channelItems[c]
                 subindex = channel - 2
-                data_point =  await self.read_sdo_can(nodeId, int(_adc_index, 16), subindex, 1000)
+                await self.read_sdo_uhal(hw, nodeId, int(_adc_index, 16), subindex, 0.5)
+                
+                #print(data_point)
                 # sdo_data =  await self.read_sdo_can_sync(nodeId, int(_adc_index, 16), subindex, 1000)
                 # if all(m is not None for m in sdo_data):
                 #     data_point = sdo_data[1]  
                 # else:
                 #     data_point =None
-                await asyncio.sleep(0.01)
-                ts = time.time()
-                elapsedtime = ts - monitoringTime
-                if data_point is not None:
-                    adc_converted = Analysis().adc_conversion(_adc_channels_reg[str(channel)], data_point)
-                    adc_converted = round(adc_converted, 3)
-                    csv_writer.writerow((str(round(elapsedtime, 1)),
-                                         str(self.get_channel()),
-                                         str(nodeId),
-                                         str(subindex),
-                                         str(data_point),
-                                         str(adc_converted)))
-                    self.logger.info(f'Got data for channel {channel}: = {adc_converted}')
+                await asyncio.sleep(0.1)
+                # ts = time.time()
+                # elapsedtime = ts - monitoringTime
+                # if data_point is not None:
+                #     adc_converted = Analysis().adc_conversion(_adc_channels_reg[str(channel)], data_point)
+                #     adc_converted = round(adc_converted, 3)
+                #     csv_writer.writerow((str(round(elapsedtime, 1)),
+                #                          str(self.get_channel()),
+                #                          str(nodeId),
+                #                          str(subindex),
+                #                          str(data_point),
+                #                          str(adc_converted)))
+                #     self.logger.info(f'Got data for channel {channel}: = {adc_converted}')
                 #pbar.update(point)
             #pbar.close()
         self.logger.notice("ADC data are saved to %s/%s" % (outputdir,outputname))
@@ -677,7 +685,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
             self.cnt['SDO read response timeout'] += 1
             return None
     
-    async def read_sdo_can(self, nodeId=None, index=None, subindex=None, timeout=100, max_data_bytes=8, SDO_TX=0x600, SDO_RX=0x580):
+    async def read_sdo_uhal(self, hw = None, nodeId=None, index=None, subindex=None, timeout=1, max_data_bytes=8, SDO_TX=0x600, SDO_RX=0x580):
         """Read an object via |SDO|
     
         Currently expedited and segmented transfer is supported by this method.
@@ -711,15 +719,25 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         msg[0] = 0x40
         msg[1], msg[2] = index.to_bytes(2, 'little')
         msg[3] = subindex
-        try:
-            await self.write_can_message(cobid, msg, timeout=timeout)
-        except CanGeneralError:
-            self.cnt['SDO read request timeout'] += 1
-            return None
-        _frame = self.read_can_message()
+        #40 00 24 01 00 00 00 00
+        broken_byte_1 = int(bin(msg[3])[2:].zfill(8)[0:5],8)
+        broken_byte_2 = int(bin(msg[3])[2:].zfill(8)[6:],8)
+        reg6 = int(str(hex(cobid))+str(hex(msg[0])[2:])+str(hex(msg[2])[2:])+str(000), 16)#11bit+8+8+5
+        #reg6 = int(str(hex(cobid))+str(hex(msg[0])[2:])+str(hex(msg[1])[2:])+str(hex(broken_byte_1))[2:], 16)#11bit+8+8+5
+        #reg7 = int(str(hex(broken_byte_2))[2:]+ str(hex(msg[3])[2:])+str(0000), 16)#3bits+8+5+8+8
+        reg7 =  int(str(hex(msg[1])[2:])+"00"+str(hex(msg[3])[2:])+"00000", 16) #int(str(hex(msg[3])[2:])+str(0000), 16)#3bits+8+5+8+8
+        #try:
+            #await self.write_can_message(cobid, msg, timeout=timeout)
+        print("cobid=",hex(cobid),"msg[0]=",hex(msg[0]),"index1=",hex(msg[1]),"index2=",hex(msg[2]),"subindex=",hex(msg[3]))
+        await self.write_uhal_mopshub_message(hw =hw,  data=[reg6,reg7,0x10000000,0x00000000], reg = ["reg6","reg7","reg8","reg9"], timeout=timeout, msg = None)
+        #except:
+        #    self.cnt['SDO read request timeout'] += 1
+        #    return None
+        #_frame = self.read_can_message()
+        _frame = await self.read_uhal_mopshub_message(hw =hw, reg = ["reg6","reg7","reg8"], timeout=timeout, msg = None) 
         if (_frame):
-           cobid_ret, ret, dlc, flag, t, error_frame = _frame
-           data_ret = self.return_valid_message(nodeId, index, subindex, cobid_ret, ret, dlc, error_frame, SDO_TX, SDO_RX)
+           cobid_ret, ret = _frame
+           #data_ret = self.return_valid_message(nodeId, index, subindex, cobid_ret, ret, dlc, error_frame, SDO_TX, SDO_RX)
            # Check command byte
            if ret[0] == (0x80):
                 abort_code = int.from_bytes(data_ret[4:], 'little')
@@ -729,7 +747,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
                 self.cnt['SDO read abort'] += 1
                 return None            
            else:
-                return data_ret      
+                return ret      
     
 
     async def  write_can_message(self, cobid, data, flag=0, timeout=None):
