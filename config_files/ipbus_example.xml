@@ -21,10 +21,11 @@
     <node id="reg7"  	address="0x12000007" description="read-write register" fwinfo="endpoint;width=0"/>
     <node id="reg8" 	address="0x12000008" description="read-write register" fwinfo="endpoint;width=0"/>
     <node id="reg9" 	address="0x12000009" description="read-write register" fwinfo="endpoint;width=0"/>
-    <node id="reg10" 	address="0x120000A0" description="read-write register" fwinfo="endpoint;width=0"/>
+    <node id="reg10" 	address="0x1200000A" description="read-write register" fwinfo="endpoint;width=0"/>
+    <node id="reg11" 	address="0x1200000B" description="read-write register" fwinfo="endpoint;width=0"/>
     <node id="ram" address="0x1000" mode="block" size="0x400" description="1kword RAM" fwinfo="endpoint;width=12"/>
     <node id="pram" address="0x2000" description="1kword peephole RAM" fwinfo="endpoint;width=1">
-        <node id="addr" address="0x0"/>
-        <node id="data" mode="port" size="0x400" address="0x1"/>
+    <node id="addr" address="0x0"/>
+    <node id="data" mode="port" size="0x400" address="0x1"/>
     </node>
 </node>

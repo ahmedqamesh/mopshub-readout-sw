@@ -16,8 +16,8 @@ from configparser import ConfigParser
 from typing import *
 import time
 import datetime
-#import numba
-import asyncio
+#import asyncio
+#from asyncio.tasks import sleep
 import sys
 import os
 from threading import Thread, Event, Lock
@@ -26,6 +26,7 @@ import threading
 import numpy as np
 from logger_main   import Logger
 from analysis_utils import AnalysisUtils
+from analysis import Analysis
 import struct
 # Third party modules
 from collections import deque, Counter
@@ -36,8 +37,10 @@ import queue
 from bs4 import BeautifulSoup #virtual env
 from typing import List, Any
 from random import randint
-from asyncio.tasks import sleep
+
+
 import uhal
+import random
 #from csv import writer
 logger = Logger().setup_main_logger(name = " Lib Check ",console_loglevel=logging.INFO, logger_file = False)
 
@@ -71,26 +74,44 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
             self.__uri, self.__addressFilePath =   self.load_settings_file()          
 
         # Initialize library and set connection parameters
+        self.__canMsgQueue = deque([], 100)  # queue with a size of 100 to queue all the messages in the bus
+        self.__uhalMsgQueue = deque([], 100)
         self.__cnt = Counter()
         self.error_counter = 0
-        
+        self.__pill2kill = Event()
+        self.__lock = Lock()     
+        self.__hw = None
         self.logger.success('....Done Initialization!')
         if logfile is not None:
             ts = os.path.join(logdir, time.strftime('%Y-%m-%d_%H-%M-%S_UHAL_Wrapper.'))
             self.logger.info(f'Existing logging Handler: {ts}'+'log')
             self.logger_file = Logger().setup_file_logger(name = "UHALWrapper",console_loglevel=console_loglevel, logger_file = ts)#for later usage
             self.logger_file.success('....Done Initialization!')
-                    
+    
+    def set_hw_connection(self):
+        self.__uhalMsgThread = Thread(target=self.read_uhal_mopshub_message, args=(["reg0","reg1","reg2"], 0.001,  None))#self.between_thread_callback)
+        self.__uhalMsgThread.start()  
+                               
+    def between_thread_callback(self):
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(self.call_back_read_uhal_mopshub_message())
+    
+    def call_back_read_uhal_mopshub_message(self):
+        self.read_uhal_mopshub_message(reg = ["reg0","reg1","reg2"], timeout=0.001, out_msg = None)
+        
     def config_uhal_hardware(self, uri = None, addressFilePath = None):
         if uri is None:
             uri = self.__uri
         if addressFilePath is None: 
             addressFilePath = self.__addressFilePath 
         hw = uhal.getDevice("mopshub", uri, "file://" + addressFilePath)
+        self.set_uhal_hardware(hw)
+        self.set_hw_connection()
         return hw
 
     def get_ual_node(self, hw =None, registerName = None):
         node = hw.getNode(registerName)
+        hw.dispatch()
         return node
 
     def load_settings_file(self):
@@ -108,190 +129,307 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
           self.logger.error("uri %s settings Not found" % (_uri)) 
           return None,None
 
-    async def read_uhal_message(self, hw = None, node =None, registerName=None, timeout=None):
+    def read_uhal_message(self, hw = None, node =None, registerName=None, timeout=None, out_msg = True):
         reg_value = node.read()
+        # Send IPbus transactions
         hw.dispatch()
         time.sleep(timeout)
-        print ("%s Value ="%registerName, hex(reg_value.value())) 
+        if out_msg:  self.logger.info(f'Read {registerName} Value = {hex(reg_value.value())}')
         return reg_value
 
-    async def write_uhal_message(self,hw =None, node =None, data=None, registerName=None, timeout=None, msg = True ):
-        if msg : print ("Writing %s to register %s"%(hex(data),registerName))
+    def write_uhal_message(self,hw =None, node =None, data=None, registerName=None, timeout=None, out_msg = True ):
+        if out_msg : self.logger.info(f'writing {hex(data)} to reg {registerName}') 
+        reqmsg = 0
         node.write(data)
+        # Send IPbus transactions
         hw.dispatch()
         time.sleep(timeout)
-        return True                                     
+        reqmsg= 1
+        return reqmsg                                     
 
+    def write_uhal_mopshub_message(self, hw =None, data=None,reg =None, timeout=None, out_msg= True):
+        """Combining writing functions for different |CAN| interfaces
+        Parameters
+        ----------
+        data : :obj:`list` of :obj:`int` or :obj:`bytes`
+            Data bytes
 
-
-    async def write_uhal_mopshub_message(self, hw =None, data=None,reg =None, timeout=None, msg= True):
-        if msg: print ("Writing data to registers %s"%reg)
+        timeout : :obj:`int`, optional
+            |SDO| write timeout in milliseconds. When :data:`None` or not
+            given an infinit timeout is used.
+        """
+        if out_msg: self.logger.info("Writing data to registers %s"%reg)
         nodes = []
+        reqmsg = 0
         for r in reg: nodes = np.append(nodes,self.get_ual_node(hw =hw, registerName = r))
-        [await self.write_uhal_message(hw =hw,node =nodes[data.index(d)], data=d, registerName=r, timeout=timeout, msg=msg) for r,d in zip(nodes,data)]
-        return True
+        [self.write_uhal_message(hw =hw,node =nodes[data.index(d)], data=d, registerName=r, timeout=timeout, out_msg=out_msg) for r,d in zip(nodes,data)]
+        reqmsg = 1
+        return reqmsg
     
-    async def build_uhal_mopshub_message(self, reg =[], msg = True):
+    def build_response_sdo_msg(self, reg =[], out_msg = True):
+        # Data_rec_reg is 76 bits = sdo[12bits]+payload[32bits]+bus_id[5bits]++3bits0+8bits0+16bits0
         reg_values = []
-        old_Bytes = [0 for b in np.arange(9)]    
+        data_ret = [0 for b in np.arange(9)]    
         new_Bytes = [0 for b in np.arange(9)]    
+        responsereg = Analysis().binToHexa(bin(int(reg[0],16))[2:].zfill(32) 
+                                           +bin(int(reg[1],16))[2:].zfill(32) 
+                                           +bin(int(reg[2],16))[2:].zfill(32))
         for r in reg: 
             try:
                 reg_values = np.append(reg_values,hex(r))
             except:
                 reg_values = np.append(reg_values,r)
-        #[0x6012f4f5,0x3ef01bf5,0x3d700001]
-        old_Bytes[0] = reg_values[0][2:5]
-        old_Bytes[1] = reg_values[0][5:7]
-        old_Bytes[2] = reg_values[0][7:9]
-        old_Bytes[3] = reg_values[0][9:11]+reg_values[1][2:3]
-        old_Bytes[4] = reg_values[1][3:5]
-        old_Bytes[5] = reg_values[1][5:7]
-        old_Bytes[6] = reg_values[1][7:9]
-        old_Bytes[7] = reg_values[1][9:11]+reg_values[2][2:3]
-        old_Bytes[8] = reg_values[2][3:5]
+        msg_bin_0 = bin(int(reg_values[0],16))[2:].zfill(32)
+        msg_bin_1 = bin(int(reg_values[1],16))[2:].zfill(32)
+        msg_bin_2 = bin(int(reg_values[2],16))[2:].zfill(32)
+         
+        data_ret  = [hex(Analysis().binToHexa(msg_bin_0[0:12]))#cobid
+                       ,hex(Analysis().binToHexa(msg_bin_0[12:20]))
+                       ,hex(Analysis().binToHexa(msg_bin_0[20:28]))
+                       ,hex(Analysis().binToHexa(msg_bin_0[28:32]+msg_bin_1[0:4]))
+                       ,hex(Analysis().binToHexa(msg_bin_1[4:12]))
+                       ,hex(Analysis().binToHexa(msg_bin_1[12:20]) )
+                       ,hex(Analysis().binToHexa(msg_bin_1[20:28]) )
+                       ,hex(Analysis().binToHexa(msg_bin_1[28:32]+msg_bin_2[0:4]))
+                       ,hex(Analysis().binToHexa(msg_bin_2[4:12]) )]
     
-        new_Bytes[0] = reg_values[0][2:5]
-        new_Bytes[2] = reg_values[0][9:11]+reg_values[1][2:3]
-        new_Bytes[3] = reg_values[0][7:9]
-        new_Bytes[4] = reg_values[1][3:5]   
-        new_Bytes[5] = reg_values[2][3:5]
-        new_Bytes[6] = reg_values[1][9:11]+reg_values[2][2:3]
-        new_Bytes[7] = reg_values[1][7:9]
-        new_Bytes[8] = reg_values[1][5:7]
-        cobid = new_Bytes[0] 
-        for i in range(len(old_Bytes)): 
-            if new_Bytes[i] =='': new_Bytes[i]=0    
-        if msg: print("Arrange", old_Bytes, "into", new_Bytes)   
-        else:   print("Arrange", old_Bytes, "into", new_Bytes) #print(new_Bytes)   
-        return cobid, new_Bytes
-            
-    async def read_uhal_mopshub_message(self, hw =None, reg =None, timeout=None, msg = True):
-        nodes = []
-        reg_values = []
-        Bytes = [0 for b in np.arange(9)]
-        for r in reg: 
-            nodes = np.append(nodes,self.get_ual_node(hw =hw, registerName = r))
-            reg_value = nodes[reg.index(r)].read()
-            hw.dispatch()
-            time.sleep(timeout)
-            if msg: print ("read %s Value ="%r, hex(reg_value.value())) 
-            reg_values = np.append(reg_values,hex(reg_value.value()))
-        cobid , data = await self.build_uhal_mopshub_message(reg = reg_values ,msg=msg)
-        return cobid , data
+        new_Bytes= [data_ret[0],data_ret[1],data_ret[3],data_ret[2],data_ret[4],data_ret[8],data_ret[7],data_ret[6],data_ret[5]]
+        for i in range(len(data_ret)): 
+            if new_Bytes[i] =='': new_Bytes[i]=0       
+        else:   pass 
+        return new_Bytes, responsereg
+    
+ 
+    def dumpMessage(self, cobid, msg, t):
+        """Dumps a uhal message to the screen and log file
 
-    def set_channel_connection(self, interface=None):
-        """
-        Set the internal attribute for the |CAN| channel
-        The function is important to initialise the channel
-        
-        Parameters
-            ----------
-            interface: String
-        """
-        self.logger.notice('Going in \'Bus On\' state ...')
-        self.logger_file.notice('Going in \'Bus On\' state ...')
-        try:
-            if interface == 'Kvaser':
-                
-                self.ch0= canlib.openChannel(int(self.__channel), canlib.canOPEN_ACCEPT_VIRTUAL) 
-                self.ch0.setBusOutputControl(canlib.Driver.NORMAL)  # New from tutorial
-                self.ch0.setBusParams(freq = int(self.__bitrate), sjw =int(self.__sjw), tseg1=int(self.__tseg1), tseg2=int(self.__tseg2))
-                self.ch0.busOn()
-                self.__canMsgThread = Thread(target=self.read_can_message_thread)
-            elif interface == 'AnaGate':
-                self.ch0= analib.Channel(ipAddress=self.__ipAddress, port=self.__channel, baudrate=self.__bitrate)
-            elif interface == 'virtual':
-                channel = "vcan" + str(self.__channel)
-                self.ch0= can.interface.Bus(bustype="socketcan", channel=channel)
-                             
-            else:
-                channel = "can" + str(self.__channel)
-                self.ch0= can.interface.Bus(bustype=interface, channel=channel, bitrate=self.__bitrate) 
-            self.logger.success(str(self))      
-        except Exception:
-            self.logger.error("TCP/IP or USB socket error in %s interface" % interface)
-            self.logger_file.error("Channel definition is %s with interface %s " % (self.ch0,interface)) 
-            sys.exit(1)
-            #self.logger.success(str(self))        
-    
-    def start_channel_connection(self, interface =None):
-        """
-        The function will start the channel connection when sending SDO CAN message
         Parameters
         ----------
-        :interface: 'String'
+        cobid : :obj:`int`
+            |CAN| identifier
+        msg : :obj:`bytes`
+            |CAN| data - max length 8
+        t : obj'int'
+        """
+        msgstr = '{:3X} {:d}   '.format(cobid, 8)
+        for i in range(len(msg)):
+            msgstr += '{:02x}  '.format(msg[i])
+        msgstr += '    ' * (8 - len(msg))
+        st = datetime.datetime.fromtimestamp(t).strftime('%H:%M:%S')
+        msgstr += str(st)
+        self.logger.info(msgstr)
+                       
+    def enable_read_signal (self,timeout =None, out_msg = None):
+         #wait for interrupt signal from FIFO
+        hw = self.get_uhal_hardware()
+        count, count_limit = 0, 5
+        #irq_tra_sig = 0x0
+        while (count !=count_limit):
+            irq_tra_sig =   self.read_uhal_message(hw = hw, 
+                                                    node =self.get_ual_node(hw =hw, registerName = "reg3"),
+                                                    registerName="reg3", timeout=timeout, out_msg = None)
+            count= count+1
+            if out_msg: self.logger.info(f'Read irq_tra_sig =  {irq_tra_sig} Count ({count})')
+            time.sleep(timeout)
+            if irq_tra_sig >=0x1:break
+        #Read data  from FIFO        
+        if irq_tra_sig>0x0:
+            found_msg =True
+            if out_msg: self.logger.info(f'Found Message in the buffer (irq_tra_sig = {irq_tra_sig})')
+            self.write_uhal_message(hw = hw, 
+                                         node =self.get_ual_node(hw =hw, registerName = "reg10"), 
+                                         registerName="reg10", 
+                                         data = 0x1, 
+                                         timeout=timeout, out_msg = False)  
+        else: 
+            found_msg = False
+            self.logger.info(f'Nothing Found in the buffer (irq_tra_sig = {irq_tra_sig})')
+        return found_msg 
+    
+    def read_uhal_mopshub_message(self, reg =None, timeout=None, out_msg = True):
+        hw = self.get_uhal_hardware()
+        nodes = []
+        reg_values = []
+        respmsg = 0
+        msg_found =  self.enable_read_signal(timeout= timeout, out_msg = out_msg)
+        if msg_found:
+            for r in reg: 
+                nodes = np.append(nodes,self.get_ual_node(hw =hw, registerName = r))
+                reg_value = nodes[reg.index(r)].read()
+                # Send IPbus transactions
+                hw.dispatch()
+                time.sleep(timeout)
+                if out_msg: self.logger.info(f'Read reg {r} Value = {hex(reg_value.value())}')
+                reg_values = np.append(reg_values,hex(reg_value.value()))    
+            respmsg = 1
+            t = time.time()
+            data, responsereg =  self.build_response_sdo_msg(reg = reg_values ,out_msg=out_msg)      
+            cobid = int(data[0],16)
+            data_ret = [0 for b in np.arange(len(data)-1)]
+            for i in np.arange(len(data_ret)): data_ret[i] = int(data[i+1],16)
+            if out_msg: self.dumpMessage(cobid, data_ret, t)
+            self.__uhalMsgQueue.appendleft((cobid, data_ret, t))
+            return cobid, bytearray(data_ret), respmsg, hex(responsereg), t
+        else:
+            respmsg = 0
+            self.cnt["mopshub_response"] =self.cnt["mopshub_response"]+ 1
+            return None, None, respmsg, None, None
+        
+    def  return_valid_message(self, nodeId, index, subindex, cobid_ret, data_ret, SDO_TX, SDO_RX,timeout):
+        messageValid = False
+        status = 0
+        respmsg, responsereg = None, None
+        messageValid_queue = False
+        t0 = time.perf_counter()
+        while time.perf_counter() - t0 < 3000 / 1000 and messageValid_queue == False:
+                # check the message validity [nodid, msg size,...]
+                for i, (cobid_ret, data_ret, t) in zip(range(len(self.__uhalMsgQueue)), self.__uhalMsgQueue):
+                    messageValid_queue = (cobid_ret == SDO_RX + nodeId
+                                    and data_ret[0] in [0x80, 0x43, 0x47, 0x4b, 0x4f, 0x42] 
+                                    and int.from_bytes([data_ret[1], data_ret[2]], 'little') == index
+                                    and data_ret[3] == subindex) 
+                    if (messageValid_queue):
+                        del self.__uhalMsgQueue[i]
+                        break
+                if (messageValid_queue ==False):
+                    _, _, respmsg, responsereg, _ = self.read_uhal_mopshub_message(reg = ["reg0","reg1","reg2"], timeout=timeout, out_msg = None) 
+                self.__uhalMsgThread.join()
+        # The following are the only expected response    
+        #
+        # messageValid = (cobid_ret == SDO_RX + nodeId
+        #                 and data_ret[0] in [0x80, 0x43, 0x47, 0x4b, 0x4f, 0x42] 
+        #                 and int.from_bytes([data_ret[1], data_ret[2]], 'little') == index
+        #                 and data_ret[3] == subindex)       
+        if messageValid_queue:
+            status = 1
+            nDatabytes = 4 - ((data_ret[0] >> 2) & 0b11) if data_ret[0] != 0x42 else 4
+            data = []
+            for i in range(nDatabytes): 
+                data.append(data_ret[4 + i])
+            return int.from_bytes(data, 'little'), messageValid_queue, status, respmsg, responsereg
+        else:
+            status = 0
+            self.logger.info(f'SDO read response timeout (node {nodeId}, index'
+                 f' {index:04X}:{subindex:02X})')
+            self.__cnt["messageInvalid_queue"]=self.__cnt["messageInvalid_queue"]+1
+            return None, messageValid_queue, status, respmsg, responsereg
+
+    def read_sdo_uhal(self, hw = None,bus= None, nodeId=None, index=None, subindex=None, timeout=1, SDO_TX=0x600, SDO_RX=0x580,out_msg=None):
+        """Read an object via |SDO|
+    
+        Currently expedited and segmented transfer is supported by this method.
+        The function will writing the dictionary request from the master to the node then read the response from the node to the master
+        The user has to decide how to decode the data.
+    
+        Parameters
+        ----------
+        nodeId : :obj:`int`
+            The id from the node to read from
+        index : :obj:`int`
+            The Object Dictionary index to read from
+        subindex : :obj:`int`
+            |OD| Subindex. Defaults to zero for single value entries.
+        timeout : :obj:`int`, optional
+            |SDO| timeout in milliseconds
     
         Returns
         -------
-        :_ch: obj:`int`
-
-        :_ch:`None`
+        :obj:`list` of :obj:`int`
+            The data if was successfully read
+        :data:`None`
             In case of errors
         """
-        self.logger.notice('Starting CAN Connection ...')
-        _interface = self.get_interface()
-        if _interface == 'Kvaser':
-            if not self.__busOn0:
-                self.logger.notice('Going in \'Bus On\' state ...')
-                self.__busOn0 = True
-            #self.ch0.busOn()
-        if _interface == 'AnaGate':
-            if not self.ch0.deviceOpen:
-                self.logger.notice('Reopening AnaGate CAN interface')
-                self.ch0.openChannel() 
-            if self.ch0.state != 'CONNECTED':
-                self.logger.notice('Restarting AnaGate CAN interface.')
-                self.ch0.restart()
-            # self.__cbFunc = analib.wrapper.dll.CBFUNC(self._anagateCbFunc())
-            # self.ch0.setCallback(self.__cbFunc)
-        else:# SocketCAN
-            pass
-        self.__canMsgThread = Thread(target=self.read_can_message_thread)
-        self.__canMsgThread.start()
+        status =0;
+        if nodeId is None or index is None or subindex is None:
+            self.logger.warning('SDO read protocol cancelled before it could begin.')               
+            self.cnt['SDO read total'] += 1
+            return None, None, None,None, None, status 
+        
+        #build Payload in a CAN SDO format
+        reg6_hex, reg7_hex, reg8_hex, requestreg = self.build_request_sdo_msg(cobid = SDO_TX+nodeId, bus = bus,  index=index, subindex=subindex)
+        #write the Request to the Socket
+        try:
+            reqmsg =  self.write_uhal_mopshub_message(hw =hw, 
+                                                  data=[reg6_hex,reg7_hex,reg8_hex,0x10000000], 
+                                                  reg = ["reg6","reg7","reg8","reg9"], 
+                                                  timeout=timeout, 
+                                                  out_msg = out_msg)     
+        except:
+            reqmsg = 0
+        #read the response from the socket
+        _frame  =  self.read_uhal_mopshub_message(reg = ["reg0","reg1","reg2"], 
+                                                       timeout=timeout, 
+                                                       out_msg = out_msg) 
+        hw.dispatch()
+        cobid_ret, msg_ret,respmsg_ret, responsereg_ret, t = _frame
+        if (not all(m is None for m in _frame)):
+           data_ret, messageValid, status,respmsg, responsereg  =  self.return_valid_message(nodeId=nodeId,
+                                                                                             index=index, 
+                                                                                             subindex=subindex,
+                                                                                             cobid_ret=cobid_ret,
+                                                                                             data_ret=msg_ret,
+                                                                                             SDO_TX=SDO_TX, SDO_RX=SDO_RX,
+                                                                                             timeout=timeout)
+           if responsereg is None: 
+               responsereg = responsereg_ret 
+               respmsg = respmsg_ret 
+           # Check command byte
+           if msg_ret[0] == (0x80):
+                status =0
+                abort_code = int.from_bytes(msg_ret[4:], 'little')
+                self.logger.error(f'Received SDO abort message while reading '
+                                  f'object {index:04X}:{subindex:02X} of node '
+                                  f'{nodeId} with abort code {abort_code:08X}')
+                if requestreg is not None: return None, reqmsg, hex(requestreg),respmsg, responsereg, status
+                else : return None, reqmsg, hex(requestreg),respmsg, responsereg, status          
+           else:
+                return data_ret , reqmsg, hex(requestreg), respmsg, responsereg  , status  
+        
+        else:
+            status = 0
+            if responsereg is not None: return None, reqmsg, hex(responsereg),respmsg, responsereg, status
+            else : return None, reqmsg, hex(requestreg),respmsg, responsereg, status   
+                                
+    def build_request_sdo_msg(self,bus = None, cobid = None, index=None, subindex=None,msg_0 =0x40):
+        max_data_bytes = 8
+        msg = [0 for i in range(max_data_bytes)]
+        msg[0] = msg_0
+        msg[1], msg[2] = index.to_bytes(2, 'little')
+        msg[3] = subindex
 
-    async def read_mopshub_buses(self, file, directory , nodeId, outputname, outputdir, n_readings):
-        SDO_TX=0x600 
-        SDO_RX=0x580
-        index = 0x1000
-        Byte0= cmd = 0x40 #Defines a read (reads data only from the node) dictionary object in CANOPN standard
-        Byte1, Byte2 = index.to_bytes(2, 'little') # divide it into two groups(bytes) of 8 bits each
-        Byte3 = subindex = 0
-        self.logger.info(f'Reading ADC channels of Mops with ID {nodeId}')
-        dev = AnalysisUtils().open_yaml_file(file=file, directory=directory)
-        # yaml file is needed to get the object dictionary items
-        _adc_channels_reg = dev["adc_channels_reg"]["adc_channels"]
-        _adc_index = list(dev["adc_channels_reg"]["adc_index"])[0]
-        _channelItems = [int(channel) for channel in list(_adc_channels_reg)]
-        # Write header to the data
-        fieldnames = ["time","bus","R/W","CAN msg","Status"]
-        csv_writer = AnalysisUtils().build_data_base(fieldnames=fieldnames,outputname =outputname, directory = outputdir)
-        monitoringTime = time.time()
-        count = 0
-        n = n_readings
-        pbar = tqdm(total=n*n*0.5+1, desc="MOPSHUB scan", iterable=True)
-        while count<=n:
-            for bus_id in np.arange(0,1):
-                data = [Byte0,Byte1,Byte2,Byte3,0,0,0,bus_id]
-                await self.write_can_message(cobid = SDO_TX + nodeId, 
-                                          data = data, 
-                                          flag=0, 
-                                          timeout=30)
-                ts = time.time()
-                elapsedtime = ts - monitoringTime                
-                csv_writer.writerow((str(elapsedtime),
-                                     str(bus_id),
-                                     str("W"),
-                                     str(data),
-                                     0))
-            await asyncio.sleep(0.01)
-            
-            pbar.update(count)
-            count+=1
-        pbar.close()
-        self.logger.notice("MOPSHUB data are saved to %s/%s" % (outputdir,outputname))
-            
-    async def read_adc_channels(self, hw, file, directory , nodeId, outputname, outputdir, n_readings):
+        msg_bin_0 = bin(msg[0])[2:].zfill(8)
+        msg_bin_1 = bin(msg[1])[2:].zfill(8)
+        msg_bin_2 = bin(msg[2])[2:].zfill(8)
+        msg_bin_3 = bin(msg[3])[2:].zfill(8)
+        
+        reg6_hex = Analysis().binToHexa(bin(cobid)[2:].zfill(12)#12bits
+                                        +msg_bin_0#8bits
+                                        +msg_bin_2#8bits
+                                        +bin(0)[2:].zfill(4)#4bits
+                                        )
+        
+        reg7_hex = Analysis().binToHexa(bin(0)[2:].zfill(4)#4bits
+                                        +msg_bin_3#8bits
+                                        +bin(bus)[2:].zfill(8)#8bits
+                                        +msg_bin_1#8bits
+                                        +bin(0)[2:].zfill(4))#4bits
+                                        
+        reg8_hex = Analysis().binToHexa(bin(0)[2:].zfill(32))
+        
+        requestreg = Analysis().binToHexa(bin(cobid)[2:].zfill(12)#12bits
+                                        +msg_bin_0#8bits
+                                        +msg_bin_2#8bits
+                                        +bin(0)[2:].zfill(4)#4bits
+                                        +bin(0)[2:].zfill(4)#4bits
+                                        +msg_bin_3#8bits
+                                        +bin(bus)[2:].zfill(8)#8bits
+                                        +msg_bin_1#8bits
+                                        +bin(0)[2:].zfill(4)
+                                        +bin(0)[2:].zfill(32))
+        return reg6_hex, reg7_hex, reg8_hex, requestreg
+    
+    
+    def read_mopshub_adc_channels(self, hw, bus_range, file, directory , nodeId, outputname, outputdir, n_readings,timeout):
         """Start actual CANopen communication
         This function contains an endless loop in which it is looped over all
         ADC channels. Each value is read using
@@ -304,685 +442,55 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         _adc_index = list(dev["adc_channels_reg"]["adc_index"])[0]
         _channelItems = [int(channel) for channel in list(_adc_channels_reg)]
         # Write header to the data
-        fieldnames = ['Time', 'Channel', "nodeId", "ADCChannel", "ADCData" , "ADCDataConverted"]
+        fieldnames = ['time',"test_tx",'bus_id',"nodeId","adc_ch","index","sub_index","adc_data", "adc_data_converted","reqmsg","requestreg","respmsg","responsereg", "status"]
         csv_writer = AnalysisUtils().build_data_base(fieldnames=fieldnames,outputname = outputname, directory = outputdir)
-        monitoringTime = time.time()
         for point in np.arange(0, n_readings): 
-            # Read ADC channels
-            #pbar = tqdm(total=len(_channelItems)*100, desc="ADC channels", iterable=True)
-            for c in tqdm(np.arange(len(_channelItems))):
-                channel =  _channelItems[c]
-                subindex = channel - 2
-                await self.read_sdo_uhal(hw, nodeId, int(_adc_index, 16), subindex, 0.5)
-                
-                #print(data_point)
-                # sdo_data =  await self.read_sdo_can_sync(nodeId, int(_adc_index, 16), subindex, 1000)
-                # if all(m is not None for m in sdo_data):
-                #     data_point = sdo_data[1]  
-                # else:
-                #     data_point =None
-                await asyncio.sleep(0.1)
-                # ts = time.time()
-                # elapsedtime = ts - monitoringTime
-                # if data_point is not None:
-                #     adc_converted = Analysis().adc_conversion(_adc_channels_reg[str(channel)], data_point)
-                #     adc_converted = round(adc_converted, 3)
-                #     csv_writer.writerow((str(round(elapsedtime, 1)),
-                #                          str(self.get_channel()),
-                #                          str(nodeId),
-                #                          str(subindex),
-                #                          str(data_point),
-                #                          str(adc_converted)))
-                #     self.logger.info(f'Got data for channel {channel}: = {adc_converted}')
-                #pbar.update(point)
-            #pbar.close()
+            for bus in bus_range:
+                # Read ADC channels
+                for c in tqdm(np.arange(len(_channelItems)),colour="green"):
+                #for c in np.arange(len(_channelItems)):
+                    channel =  _channelItems[c]
+                    subindex = channel - 2
+                    monitoringTime = time.time()
+                    data_point, reqmsg, requestreg, respmsg,responsereg , status =  self.read_sdo_uhal(hw = hw,
+                                                                                                          bus = bus, 
+                                                                                                          nodeId= nodeId, 
+                                                                                                          index = int(_adc_index, 16), 
+                                                                                                          subindex = subindex, 
+                                                                                                          timeout = timeout,
+                                                                                                          out_msg = None)                   
+                    
+                    #await asyncio.sleep(0.1)
+                    time.sleep(timeout*2)
+                    ts = time.time()
+                    elapsedtime = ts - monitoringTime
+                    if data_point is not None:
+                        adc_converted = Analysis().adc_conversion(_adc_channels_reg[str(channel)], data_point)
+                        adc_converted = round(adc_converted, 3)
+                        self.logger.info(f'Got data for channel {channel}: = {adc_converted}')
+                    else:
+                        adc_converted = 0
+                    csv_writer.writerow((str(elapsedtime),
+                                         str(1),
+                                         str(bus),
+                                         str(nodeId),
+                                         str(channel),
+                                         str(_adc_index),
+                                         str(subindex),
+                                         str(data_point),
+                                         str(adc_converted),
+                                         str(reqmsg),
+                                         str(requestreg), 
+                                         str(respmsg),
+                                         str(responsereg), 
+                                         status))
+        
+        self.logger.info(f'No. of invalid responses = {self.__cnt["messageInvalid_queue"]}|| No. of failed responses {self.cnt["mopshub_response"]}')
         self.logger.notice("ADC data are saved to %s/%s" % (outputdir,outputname))
 
-    def restart_channel_connection(self, interface = None):
-        """Restart |CAN| channel.
-        for threaded application, busOff() must be called once for each handle. 
-        The same applies to busOn() - the physical channel will not go off bus
-        until the last handle to the channel goes off bus.   
-        
-        """  
-        if interface is None: 
-            _interface = self.__interface
-        else:
-            _interface = interface
-            
-        self.logger.warning('Resetting the CAN channel.')
-        #Stop the bus
-        with self.lock:
-            self.cnt['Residual CAN messages'] = len(self.__canMsgQueue)
-        self.__pill2kill.set()
-        if self.__busOn0:
-            if _interface == 'Kvaser':
-                try:
-                    self.__canMsgThread.join()
-                except RuntimeError:
-                    pass
-                self.ch0.busOff()
-                self.ch0.close()
-            elif _interface == 'AnaGate': 
-                self.ch0.close()
-            else:
-                self.ch0.shutdown()            
-        self.__busOn0 = False
-        self.set_channel_connection(interface = _interface)
-        self.__pill2kill = Event()
-        self.logger.notice('The channel is reset') 
-        
-    def stop(self):
-        """Close |CAN| channel
-        Make sure that this is called so that the connection is closed in a
-        correct manner. When this class is used within a :obj:`with` statement
-        this method is called automatically when the statement is exited.
-        """
-        with self.lock:
-            self.cnt['Residual CAN messages'] = len(self.__canMsgQueue)
-        self.logger.notice(f'Error counters: {self.cnt}')
-        self.logger.warning('Stopping helper threads. This might take a '
-                            'minute')
-        self.logger.warning('Closing the CAN channel.')
-        self.__pill2kill.set()
-        if self.__busOn0:
-            if self.__interface == 'Kvaser':
-                try:
-                    self.__canMsgThread.join()
-                except RuntimeError:
-                    pass
-                self.logger.warning('Going in \'Bus Off\' state.')
-                self.ch0.busOff()
-                self.ch0.close()
-            elif self.__interface == 'AnaGate': 
-                self.ch0.close()
-            else:
-                self.ch0.shutdown()
-                #channel = "can" + str(self.__channel)
-                        
-        self.__busOn0 = False
-        self.logger.warning('Stopping the server.')
-
-    async def read_sdo_can_sync(self, nodeId=None, index=None, subindex=None, timeout=2000, max_data_bytes=8,
-                                SDO_TX=0x600, SDO_RX=0x580, cobid=None):
-        """Read an object via |SDO|
-        Currently expedited and segmented transfer is supported by this method.
-        The function will writing the dictionary request from the master to the node then read the response from
-        the node to the master
-        The user has to decide how to decode the data.
-        """
-        self.logger.info('Reading an object via |SDO|')
-        channel = self.__channel
-        if nodeId is None or index is None or subindex is None or channel is None:
-            self.logger.warning('SDO read protocol cancelled before it could begin.')
-            return None
-
-        self.cnt['SDO read total'] += 1
-        self.logger.info(f'Send SDO read request to node {nodeId}')
-
-        cobid = SDO_TX + nodeId
-        msg = [0 for _ in range(max_data_bytes)]
-        msg[0] = 0x40
-        msg[1], msg[2] = index.to_bytes(2, 'little')
-        msg[3] = subindex
-
-        can_config.sem_config_block.acquire()
-        #self.logger.info("Start Communication")
-        try:
-            #await self.write_can_message(channel, cobid, msg, timeout=timeout)
-            msg_fram = can.Message(arbitration_id=cobid, data=msg, is_extended_id=False, is_error_frame=False)
-            can_config.send(channel, msg_fram, timeout) 
-            self.current_subindex = subindex
-            self.current_channel = channel
-            self.cobid_ret = SDO_RX + nodeId
-        except can.CanError as e:
-            self.logger.exception(e)
-            self.cnt['SDO read request timeout'] += 1
-            return None
-        can_config.sem_recv_block.release()
-        #self.logger.info("Send Thread is waiting for receive thread to finish socket read")
-        # Wait for can-message
-        can_config.sem_read_block.acquire()
-        #self.logger.info("Receiving is finished. Processing received data")
-        can_config.sem_config_block.release()
-        #self.logger.info("Communication finished")
-        # Process can-messages
-        message_valid = False
-        error_response = False
-        if self.__interface == 'socketcan':
-            while not self.receive_queue.empty():
-                frame = self.receive_queue.get()
-                if frame is not None:
-                    cobid_ret, ret, dlc, flag, t, error_frame = (frame.arbitration_id, frame.data,
-                                                                 frame.dlc, frame.is_extended_id,
-                                                                 frame.timestamp, frame.is_error_frame)
-                    message_valid = (dlc == max_data_bytes
-                                     and cobid_ret == SDO_RX + nodeId
-                                     and ret[0] in [0x80, 0x43, 0x47, 0x4b, 0x4f, 0x42]
-                                     and int.from_bytes([ret[1], ret[2]], 'little') == index
-                                     and ret[3] == subindex)
-                    error_response = (dlc == 8 and cobid_ret == 0x88 and ret[0] in [0x00])
-                if error_response:
-                    self.error_counter += 1
-                    return None
-                if message_valid:
-                    #self.logger.info(f'msg received: {frame}')
-                    break
-                else:
-                    self.logger.info(f'SDO read response timeout (node {nodeId}, index'
-                                     f' {index:04X}:{subindex:02X})')
-                    self.cnt['SDO read response timeout'] += 1
-                    return None
-        else:
-            # Wait for response
-            t0 = time.perf_counter()
-            messageValid = False
-            errorResponse = False
-            errorReset = False
-            while time.perf_counter() - t0 < timeout / 1000:
-                with self.__lock:
-                    # check the message validity [nodid, msg size,...]
-                    for i, (cobid_ret, ret, dlc, flag, t) in zip(range(len(self.__canMsgQueue)), self.__canMsgQueue):
-                        messageValid = (dlc == 8 
-                                        and cobid_ret == SDO_RX + nodeId
-                                        and ret[0] in [0x80, 0x43, 0x47, 0x4b, 0x4f, 0x42] 
-                                        and int.from_bytes([ret[1], ret[2]], 'little') == index
-                                        and ret[3] == subindex)
-                        # errorResponse is meant to deal with any disturbance in the signal due to the reset of the chip 
-                        errorResponse = (dlc == 8 and cobid_ret == 0x88 and ret[0] in [0x00])
-                if (messageValid or errorResponse):
-                    del self.__canMsgQueue[i]
-                    break  
-        
-                if (messageValid):
-                    break
-                if (errorResponse):
-                    return cobid_ret, None
-                    break
-                
-                else:
-                    self.logger.info(f'SDO read response timeout (node {nodeId}, index'
-                                     f' {index:04X}:{subindex:02X})')
-                    self.cnt['SDO read response timeout'] += 1
-                    return None, None
-                self.__canMsgThread.join()#Dominic to join the thread with Pill 2 kill 
-                    
-
-
-        # Check command byte
-        if ret[0] == 0x80:
-            abort_code = int.from_bytes(ret[4:], 'little')
-            self.logger.error('Received SDO abort message while reading')
-            self.logger.error(f'Object: {index}')
-            self.logger.error(f'Subindex: {subindex}')
-            self.logger.error(f'NodeID: {nodeId}')
-            self.logger.error(f'Abort code: {abort_code}')
-            self.cnt['SDO read abort'] += 1
-            return None
-        # Here some Bitwise Operators are needed to perform  bit by bit operation
-        # ret[0] =67 [bin(ret[0]) = 0b1000011] //from int to binary
-        # (ret[0] >> 2) will divide ret[0] by 2**2 [Returns ret[0] with the bits shifted to the right by 2 places. = 0b10000]
-        # (ret[0] >> 2) & 0b11 & Binary AND Operator [copies a bit to the result if it exists in both operands = 0b0]
-        # 4 - ((ret[0] >> 2) & 0b11) for expedited transfer the object dictionary does not get larger than 4 bytes.
-        n_data_bytes = 4 - ((ret[0] >> 2) & 0b11) if ret[0] != 0x42 else 4
-        data = []
-        for i in range(n_data_bytes): 
-            data.append(ret[4 + i])
-        self.logger.info(f'Got data: {data}')
-        return cobid_ret, int.from_bytes(data, 'little')
-    
-    
-    async def read_sdo_can_thread(self, nodeId=None, index=None, subindex=None, timeout=100, max_data_bytes=8, SDO_TX=None, SDO_RX=None, cobid=None):
-        """Read an object via |SDO|
-    
-        Currently expedited and segmented transfer is supported by this method.
-        The function will writing the dictionary request from the master to the node then read the response from the node to the master
-        The user has to decide how to decode the data.
-    
-        Parameters
-        ----------
-        nodeId : :obj:`int`
-            The id from the node to read from
-        index : :obj:`int`
-            The Object Dictionary index to read from
-        subindex : :obj:`int`
-            |OD| Subindex. Defaults to zero for single value entries.
-        timeout : :obj:`int`, optional
-            |SDO| timeout in milliseconds
-    
-        Returns
-        -------
-        :obj:`list` of :obj:`int`
-            The data if was successfully read
-        :data:`None`
-            In case of errors
-        """
-        self.logger.notice("Reading an object via |SDO|")
-        self.start_channel_connection(interface=self.__interface)
-        if nodeId is None or index is None or subindex is None:
-            self.logger.warning('SDO read protocol cancelled before it could begin.')         
-            return None
-        self.cnt['SDO read total'] += 1
-        self.logger.info(f'Send SDO read request to node {nodeId}.')
-        msg = [0 for i in range(max_data_bytes)]
-        msg[0] = 0x40
-        msg[1], msg[2] = index.to_bytes(2, 'little')
-        msg[3] = subindex
-        try:
-            await self.write_can_message(cobid, msg, timeout=timeout)
-        except CanGeneralError:
-            self.cnt['SDO read request timeout'] += 1
-            return None
-        # Wait for response
-        t0 = time.perf_counter()
-        messageValid = False
-        errorResponse = False
-        errorReset = False
-        while time.perf_counter() - t0 < timeout / 1000:
-            with self.__lock:
-                # check the message validity [nodid, msg size,...]
-                for i, (cobid_ret, ret, dlc, flag, t) in zip(range(len(self.__canMsgQueue)), self.__canMsgQueue):
-                    messageValid = (dlc == 8 
-                                    and cobid_ret == SDO_RX + nodeId
-                                    and ret[0] in [0x80, 0x43, 0x47, 0x4b, 0x4f, 0x42] 
-                                    and int.from_bytes([ret[1], ret[2]], 'little') == index
-                                    and ret[3] == subindex)
-                    # errorResponse is meant to deal with any disturbance in the signal due to the reset of the chip 
-                    errorResponse = (dlc == 8 and cobid_ret == 0x88 and ret[0] in [0x00])
-            if (messageValid or errorResponse):
-                del self.__canMsgQueue[i]
-                break  
-    
-            if (messageValid):
-                break
-            if (errorResponse):
-                return cobid_ret, None
-        else:
-            self.logger.info(f'SDO read response timeout (node {nodeId}, index'
-                             f' {index:04X}:{subindex:02X})')
-            self.cnt['SDO read response timeout'] += 1
-            return None, None
-        self.__canMsgThread.join()#Dominic to join the thread with Pill 2 kill 
-    
-        # Check command byte
-        if ret[0] == (0x80):
-            abort_code = int.from_bytes(ret[4:], 'little')
-            self.logger.error(f'Received SDO abort message while reading '
-                              f'object {index:04X}:{subindex:02X} of node '
-                              f'{nodeId} with abort code {abort_code:08X}')
-            self.cnt['SDO read abort'] += 1
-            return None, None
-        # Here some Bitwise Operators are needed to perform  bit by bit operation
-        # ret[0] =67 [bin(ret[0]) = 0b1000011] //from int to binary
-        # (ret[0] >> 2) will divide ret[0] by 2**2 [Returns ret[0] with the bits shifted to the right by 2 places. = 0b10000]
-        # (ret[0] >> 2) & 0b11 & Binary AND Operator [copies a bit to the result if it exists in both operands = 0b0]
-        # 4 - ((ret[0] >> 2) & 0b11) for expedited transfer the object dictionary does not get larger than 4 bytes.
-        n_data_bytes = 4 - ((ret[0] >> 2) & 0b11) if ret[0] != 0x42 else 4
-        data = []
-        for i in range(n_data_bytes): 
-            data.append(ret[4 + i])
-        self.logger.info(f'Got data: {data}')
-        return cobid_ret, int.from_bytes(data, 'little')
-    
-    def return_valid_message(self, nodeId, index, subindex, cobid_ret, data_ret, dlc, error_frame, SDO_TX, SDO_RX):
-        # The following are the only expected response
-        messageValid = False
-        errorReset = False  # check any reset signal from the chip
-        errorResponse = False  # SocketCAN error message
-    
-        errorReset = (dlc == 8 
-                      and cobid_ret == 0x700 + nodeId 
-                      and data_ret[0] in [0x05, 0x08]) 
-    
-        errorResponse = (dlc == 8 
-                         and cobid_ret == 0x88 
-                         and data_ret[0] in [0x00]) 
-    
-        messageValid = (dlc == 8 
-                and cobid_ret == SDO_RX + nodeId
-                and data_ret[0] in [0x80, 0x43, 0x47, 0x4b, 0x4f, 0x42] 
-                and int.from_bytes([data_ret[1], data_ret[2]], 'little') == index
-                and data_ret[3] == subindex)       
-        # Check the validity
-        if errorReset:
-            cobid_ret, data_ret, dlc, flag, t, error_frame = self.read_can_message()
-            messageValid = (dlc == 8 
-                    and cobid_ret == SDO_RX + nodeId
-                    and data_ret[0] in [0x80, 0x43, 0x47, 0x4b, 0x4f, 0x42] 
-                    and int.from_bytes([data_ret[1], data_ret[2]], 'little') == index
-                    and data_ret[3] == subindex)
-    
-        if errorResponse:
-            # there is a scenario where the chip reset and send an error message after
-            # This loop will:
-            # 1. read the can reset signal
-            # 2. read the next can message and check its validity
-            try:
-                cobid_ret, data_ret, dlc, flag, t, error_frame = self.read_can_message(timeout=1.0)
-            except Exception:
-                self.logger.error("Cannot read messages from the bus")
-            errorReset = (dlc == 8 and cobid_ret == 0x700 + nodeId and data_ret[0] in [0x05, 0x08]) 
-            if (errorReset):
-                cobid_ret, data_ret, dlc, flag, t, error_frame = self.read_can_message(timeout=1.0)
-                messageValid = (dlc == 8 
-                        and cobid_ret == SDO_TX + nodeId
-                        and data_ret[0] in [0x80, 0x43, 0x47, 0x4b, 0x4f, 0x42] 
-                        and int.from_bytes([data_ret[1], data_ret[2]], 'little') == index
-                        and data_ret[3] == subindex)
-            else:
-               return None
-    
-        if messageValid:
-            nDatabytes = 4 - ((data_ret[0] >> 2) & 0b11) if data_ret[0] != 0x42 else 4
-            data = []
-            for i in range(nDatabytes): 
-                data.append(data_ret[4 + i])
-            return int.from_bytes(data, 'little')
-    
-        else:
-            self.logger.info(f'SDO read response timeout (node {nodeId}, index'
-                 f' {index:04X}:{subindex:02X})')
-            self.cnt['SDO read response timeout'] += 1
-            return None
-    
-    async def read_sdo_uhal(self, hw = None, nodeId=None, index=None, subindex=None, timeout=1, max_data_bytes=8, SDO_TX=0x600, SDO_RX=0x580):
-        """Read an object via |SDO|
-    
-        Currently expedited and segmented transfer is supported by this method.
-        The function will writing the dictionary request from the master to the node then read the response from the node to the master
-        The user has to decide how to decode the data.
-    
-        Parameters
-        ----------
-        nodeId : :obj:`int`
-            The id from the node to read from
-        index : :obj:`int`
-            The Object Dictionary index to read from
-        subindex : :obj:`int`
-            |OD| Subindex. Defaults to zero for single value entries.
-        timeout : :obj:`int`, optional
-            |SDO| timeout in milliseconds
-    
-        Returns
-        -------
-        :obj:`list` of :obj:`int`
-            The data if was successfully read
-        :data:`None`
-            In case of errors
-        """
-        if nodeId is None or index is None or subindex is None:
-            self.logger.warning('SDO read protocol cancelled before it could begin.')         
-            return None
-        self.cnt['SDO read total'] += 1
-        cobid = SDO_TX + nodeId
-        msg = [0 for i in range(max_data_bytes)]
-        msg[0] = 0x40
-        msg[1], msg[2] = index.to_bytes(2, 'little')
-        msg[3] = subindex
-        #40 00 24 01 00 00 00 00
-        broken_byte_1 = int(bin(msg[3])[2:].zfill(8)[0:5],8)
-        broken_byte_2 = int(bin(msg[3])[2:].zfill(8)[6:],8)
-        reg6 = int(str(hex(cobid))+str(hex(msg[0])[2:])+str(hex(msg[2])[2:])+str(000), 16)#11bit+8+8+5
-        #reg6 = int(str(hex(cobid))+str(hex(msg[0])[2:])+str(hex(msg[1])[2:])+str(hex(broken_byte_1))[2:], 16)#11bit+8+8+5
-        #reg7 = int(str(hex(broken_byte_2))[2:]+ str(hex(msg[3])[2:])+str(0000), 16)#3bits+8+5+8+8
-        reg7 =  int(str(hex(msg[1])[2:])+"00"+str(hex(msg[3])[2:])+"00000", 16) #int(str(hex(msg[3])[2:])+str(0000), 16)#3bits+8+5+8+8
-        #try:
-            #await self.write_can_message(cobid, msg, timeout=timeout)
-        print("cobid=",hex(cobid),"msg[0]=",hex(msg[0]),"index1=",hex(msg[1]),"index2=",hex(msg[2]),"subindex=",hex(msg[3]))
-        await self.write_uhal_mopshub_message(hw =hw,  data=[reg6,reg7,0x10000000,0x00000000], reg = ["reg6","reg7","reg8","reg9"], timeout=timeout, msg = None)
-        #except:
-        #    self.cnt['SDO read request timeout'] += 1
-        #    return None
-        #_frame = self.read_can_message()
-        _frame = await self.read_uhal_mopshub_message(hw =hw, reg = ["reg6","reg7","reg8"], timeout=timeout, msg = None) 
-        if (_frame):
-           cobid_ret, ret = _frame
-           #data_ret = self.return_valid_message(nodeId, index, subindex, cobid_ret, ret, dlc, error_frame, SDO_TX, SDO_RX)
-           # Check command byte
-           if ret[0] == (0x80):
-                abort_code = int.from_bytes(data_ret[4:], 'little')
-                self.logger.error(f'Received SDO abort message while reading '
-                                  f'object {index:04X}:{subindex:02X} of node '
-                                  f'{nodeId} with abort code {abort_code:08X}')
-                self.cnt['SDO read abort'] += 1
-                return None            
-           else:
-                return ret      
-    
-
-    async def  write_can_message(self, cobid, data, flag=0, timeout=None):
-        """Combining writing functions for different |CAN| interfaces
-        Parameters
-        ----------
-        cobid : :obj:`int`
-            |CAN| identifier
-        data : :obj:`list` of :obj:`int` or :obj:`bytes`
-            Data bytes
-        flag : :obj:`int`, optional
-            Message flag (|RTR|, etc.). Defaults to zero.
-        timeout : :obj:`int`, optional
-            |SDO| write timeout in milliseconds. When :data:`None` or not
-            given an infinit timeout is used.
-        """
-        if self.__interface == 'Kvaser':
-            if timeout is None:
-                timeout = 0xFFFFFFFF
-            frame = Frame(id_=cobid, data=data, timestamp=None)#, flags=canlib.MessageFlag.EXT)  #  from tutorial
-            self.ch0.writeWait(frame, timeout) #
-        
-        elif self.__interface == 'AnaGate':
-            if not self.ch0.deviceOpen:
-                self.logger.notice('Reopening AnaGate CAN interface')
-            self.ch0.write(cobid, data, flag)
-        else:
-            msg = can.Message(arbitration_id=cobid, data=data, is_extended_id=False, is_error_frame=False)
-            try:
-                self.ch0.send(msg, timeout)
-            except:  # can.CanError:
-                self.logger.error("An Error occurred, The bus is not active")
-    
-    def can_setup(self, channel: int, interface : str):
-        self.logger.info("Resetting CAN Interface as soon as communication threads are finished")
-        self.sem_config_block.acquire()
-        self.logger.info("Resetting CAN Interface")
-        self.set_interface(interface)
-        if channel == self.can_0_settings['channel']:
-            if self.__busOn0:
-                self.ch0.shutdown()
-                self.hardware_config(channel = channel,interface = interface)
-        elif channel == self.can_1_settings['channel']:
-            if self.__busOn1:
-                self.ch1.shutdown()
-                self.hardware_config(channel = channel,interface = interface)
-        self.logger.info(f"Channel {channel} is set")
-        self.sem_config_block.release()
-        self.logger.info("Resetting of CAN Interface finished. Returning to communication.")
-                                                    
-    def hardware_config(self, bitrate = None, channel = None, interface = None, sjw = None,samplepoint = None,tseg1 = None,tseg2 = None):
-        '''
-        Pass channel string (example 'can0') to configure OS level drivers and interface.
-        '''
-        #sudo chown root:root socketcan_wrapper_enable.sh
-        #sudo chmod 4775 socketcan_wrapper_enable.sh
-        #sudo bash socketcan_wrapper_enable.sh 111111 0.5 4 can0 can 5 6
-        
-        if channel == 0:
-            if interface == "socketcan":
-                _bus_type = "can"
-                _can_channel = _bus_type + f"{self.can_0_settings['channel']}"
-                self.logger.info('Configure CAN hardware drivers for channel %s' % _can_channel)
-                #os.system("." + rootdir + "/socketcan_wrapper_enable.sh %i %s %s %s %s %s %s" % (bitrate, samplepoint, sjw, _can_channel, _bus_type,tseg1,tseg2))
-                os.system("bash " + rootdir + "/socketcan_wrapper_enable.sh %s %s %s %s %s %s %s" % (f"{self.can_0_settings['bitrate']}",
-                                 f"{self.can_0_settings['samplePoint']}",f"{self.can_0_settings['SJW']}",_can_channel,_bus_type,
-                                 f"{self.can_0_settings['tseg1']}", f"{self.can_0_settings['tseg2']}"))
-                # subprocess.call(['sh', 'bash socketcan_wrapper_enable.sh', f"{self.can_0_settings['bitrate']}",
-                #                  f"{self.can_0_settings['samplePoint']}",f"{self.can_0_settings['SJW']}",_can_channel,_bus_type,
-                #                  f"{self.can_0_settings['tseg1']}", f"{self.can_0_settings['tseg2']}"],
-                #                  cwd=rootdir)
-                            
-            elif interface == "virtual":
-                _bus_type = "vcan"
-                _can_channel = _bus_type + f"{self.can_0_settings['channel']}"
-                self.logger.info('Configure CAN hardware drivers for channel %s' % _can_channel)
-                #os.system(". sudo " + rootdir + "/socketcan_wrapper_enable.sh %i %s %s %s %s %s %s" % (bitrate, samplepoint, sjw, _can_channel, _bus_type,tseg1,tseg2))
-                subprocess.call(['sh', 'sudo  ./socketcan_wrapper_enable.sh', f"{self.can_0_settings['bitrate']}",
-                                 f"{self.can_0_settings['samplePoint']}",f"{self.can_0_settings['SJW']}",_can_channel,_bus_type,
-                                 f"{self.can_0_settings['tseg1']}", f"{self.can_0_settings['tseg2']}"],
-                                 cwd=rootdir)
-            else:
-                #Do nothing because it is not CAN
-                _can_channel = str(channel)
-        if channel == 1:
-            pass
-        self.logger.info('%s[%s] Interface is initialized....' % (interface,_can_channel))
-           
-    def read_can_message_thread(self):
-        """Read incoming |CAN| messages and store them in the queue
-        :attr:`canMsgQueue`.
-
-        This method runs an endless loop which can only be stopped by setting
-        the :class:`~threading.Event` :attr:`pill2kill` and is therefore
-        designed to be used as a :class:`~threading.Thread`.
-        """
-        #self.__pill2kill = Event()
-        _interface = self.__interface;
-        while not self.__pill2kill.is_set(): 
-            try:
-                if _interface == 'Kvaser':
-                    with self.__kvaserLock:#Added for urgent cases
-                        frame = self.ch0.read(100)
-                    cobid, data, dlc, flag, t = (frame.id, frame.data,
-                                                 frame.dlc, frame.flags,
-                                                 frame.timestamp)
-                    error_frame = None
-                    if frame is None or (cobid == 0 and dlc == 0):
-                        raise canlib.CanNoMsg
-                
-                elif _interface == 'AnaGate':
-                    cobid, data, dlc, flag, t = self.ch0.getMessage()
-                    if (cobid == 0 and dlc == 0):
-                        raise analib.CanNoMsg
-                else:
-                    frame = self.ch0.recv(timeout=1.0)
-                    if frame is None:
-                        self.__pill2kill.set()
-                        # raise can.CanError
-                    cobid, data, dlc, flag, t , error_frame = frame.arbitration_id, frame.data, frame.dlc, frame.is_extended_id, frame.timestamp, frame.is_error_frame
-                with self.__lock:
-                    self.__canMsgQueue.appendleft((cobid, data, dlc, flag, t))
-                self.dumpMessage(cobid, data, dlc, flag, t)
-                return cobid, data, dlc, flag, t, error_frame
-            except:  # (canlib.CanNoMsg, analib.CanNoMsg,can.CanError):
-               self.__pill2kill = Event()
-               return None, None, None, None, None, None
-
-    def read_can_message(self, timeout=1.0):
-        """Read incoming |CAN| messages without storing any Queue
-        This method runs an endless loop which can only be stopped by setting
-        """
-        try:        
-            if self.__interface == 'Kvaser':
-                    with self.__kvaserLock:#Added for urgent cases
-                        frame = self.ch0.read(100)
-                    cobid, data, dlc, flag, t = (frame.id, frame.data,
-                                                 frame.dlc, frame.flags,
-                                                 frame.timestamp)
-                    error_frame = None
-                    if frame is None or (cobid == 0 and dlc == 0):
-                        raise canlib.CanNoMsg
-                
-            elif self.__interface == 'AnaGate':
-                cobid, data, dlc, flag, t = self.ch0.getMessage()
-                error_frame = None
-                #return cobid, data, dlc, flag, t, error_frame
-                if (cobid == 0 and dlc == 0):
-                    raise analib.CanNoMsg
-            else:
-                frame = self.ch0.recv(timeout=timeout)   
-                if frame is not None:
-                    # raise can.CanError
-                    cobid, data, dlc, flag, t , error_frame = (frame.arbitration_id, frame.data,
-                                                               frame.dlc, frame.is_extended_id,
-                                                               frame.timestamp, frame.is_error_frame)
-            return cobid, data, dlc, flag, t, error_frame
-        except:  # (canlib.CanNoMsg, analib.CanNoMsg,can.CanError):
-            return None, None, None, None, None, None
-        
-        
-    # The following functions are to read the can messages
-    def _anagateCbFunc(self):
-        """Wraps the callback function for AnaGate |CAN| interfaces. This is
-        neccessary in order to have access to the instance attributes.
-
-        The callback function is called asychronous but the instance attributes
-        are accessed in a thread-safe way.
-
-        Returns
-        -------
-        cbFunc
-            Function pointer to the callback function
-        """
-
-        def cbFunc(cobid, data, dlc, flag):
-            """Callback function.
-
-            Appends incoming messages to the message queue and logs them.
-
-            Parameters
-            ----------
-            cobid : :obj:`int`
-                |CAN| identifier
-            data : :class:`~ctypes.c_char` :func:`~cytpes.POINTER`
-                |CAN| data - max length 8. Is converted to :obj:`bytes` for
-                internal treatment using :func:`~ctypes.string_at` function. It
-                is not possible to just use :class:`~ctypes.c_char_p` instead
-                because bytes containing zero would be interpreted as end of
-                data.
-            dlc : :obj:`int`
-                Data Length Code
-            flag : :obj:`int`
-                Message flags
-                class to work.
-            """
-            data = ct.string_at(data, dlc)
-            t = time.time()
-            with self.__lock:
-                self.__canMsgQueue.appendleft((cobid, data, dlc, flag, t))
-            self.dumpMessage(cobid, data, dlc, flag, t)
-        
-        return cbFunc
-    
-    def dumpMessage(self, cobid, msg, dlc, flag, t):
-        """Dumps a CANopen message to the screen and log file
-
-        Parameters
-        ----------
-        cobid : :obj:`int`
-            |CAN| identifier
-        msg : :obj:`bytes`
-            |CAN| data - max length 8
-        dlc : :obj:`int`
-            Data Length Code
-        flag : :obj:`int`
-            Flags, a combination of the :const:`canMSG_xxx` and
-            :const:`canMSGERR_xxx` values
-        t : obj'int'
-        """
-        if self.__interface == 'Kvaser':
-            if (flag & canlib.canMSG_ERROR_FRAME != 0):
-                self.logger.error("***ERROR FRAME RECEIVED***")
-        else:
-            msgstr = '{:3X} {:d}   '.format(cobid, dlc)
-            for i in range(len(msg)):
-                msgstr += '{:02x}  '.format(msg[i])
-            msgstr += '    ' * (8 - len(msg))
-            st = datetime.datetime.fromtimestamp(t).strftime('%H:%M:%S')
-            msgstr += str(st)
-            self.logger.info(msgstr)
-
     # Setter and getter functions
-    def set_interface(self, x):
-        self.__interface = x
+    def set_uhal_hardware(self, x):
+        self.__hw = x
 
     def set_nodeList(self, x):
         self.__nodeList = x
@@ -1028,10 +536,10 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
             raise AttributeError('You are using a Kvaser CAN interface!')
         return self.__ipAddress
 
-    def get_interface(self):
+    def get_uhal_hardware(self):
         """:obj:`str` : Vendor of the CAN interface. Possible values are
         ``'Kvaser'`` and ``'AnaGate'``."""
-        return self.__interface
+        return self.__hw
     
     def get_channel(self):
         """:obj:`int` : Number of the crurrently used |CAN| channel."""
@@ -1194,6 +702,21 @@ def main():
     
     # Start the server
     wrapper = CanWrapper(**vars(args))  
-    
+
+class ConsumerThread(Thread):
+    def run(self):
+        global queue
+        while True:
+            lock.acquire()
+            if not queue:
+                print ("Nothing in queue, but consumer will try to consume")
+            num = queue.pop(0)
+            print ("Consumed", num) 
+            lock.release()
+            time.sleep(random.random())  
+               
 if __name__ == "__main__":
     main()      
+    
+    ProducerThread().start()
+    ConsumerThread().start()  
