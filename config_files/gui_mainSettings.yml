@@ -1,0 +1,13 @@
+Application:
+  Devices:
+  - MOPS
+  app_icon_dir: canmopsGUI/icons/icon_mops.png
+  app_name: CANMOPS
+  app_version: v1.2
+  user: Ahmed Qamesh
+  multi_mode: False
+  mopshub_mode: True
+  trim_mode: False
+channel_ports:
+  "0":
+  "1":

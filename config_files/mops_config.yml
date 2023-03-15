@@ -117,7 +117,7 @@ Application:
   - '0'
   - '1'
 Hardware:
-  resistor_ratio: '1'
+  resistor_ratio: 1
   ref_voltage: 1.226
 adc_channels_reg:
   adc_channels:
