@@ -25,11 +25,9 @@ class Analysis(object):
             elif adc_channels_reg == "T":
                 value = value * ref_voltage/4096 * resistor_ratio
             else:
-                value = value * ref_voltage/4096 * resistor_ratio
+                value = value
         return value
-    def convertion(self,value =None):
-        return value
-    
+
     def NTC_convertion(self,value =None):
         '''
         To convert ADC data to temperature you first find the thermistor resistance and then use it to find the temperature.

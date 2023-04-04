@@ -57,7 +57,8 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
                  file_loglevel=logging.INFO, 
                  logdir=None,load_config = False, 
                  logfile = None,
-                 console_loglevel=logging.INFO):
+                 console_loglevel=logging.INFO,
+                 mainWindow= False):
        
         super(UHALWrapper, self).__init__()  # super keyword to call its methods from a subclass:        
         #Initialize a watchdog (to be done)
@@ -85,6 +86,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         self.__lock = Lock()     
         self.__hw = None
         self.logger.success('....Done Initialization!')
+        self.__address_byte = [0x80, 0x88, 0x90, 0x98, 0x80]
         if logfile is not None:
             ts = os.path.join(logdir, time.strftime('%Y-%m-%d_%H-%M-%S_UHAL_Wrapper.'))
             self.logger.info(f'Existing logging Handler: {ts}'+'log')
@@ -194,19 +196,18 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
                 reg_values = np.append(reg_values,r)
         msg_bin_0 = bin(int(reg_values[0],16))[2:].zfill(32)
         msg_bin_1 = bin(int(reg_values[1],16))[2:].zfill(32)
-        msg_bin_2 = bin(int(reg_values[2],16))[2:].zfill(32)
-         
+        msg_bin_2 = bin(int(reg_values[2],16))[2:].zfill(32)     
         data_ret  = [hex(Analysis().binToHexa(msg_bin_0[0:12]))#cobid
-                       ,hex(Analysis().binToHexa(msg_bin_0[12:20]))
-                       ,hex(Analysis().binToHexa(msg_bin_0[20:28]))
-                       ,hex(Analysis().binToHexa(msg_bin_0[28:32]+msg_bin_1[0:4]))
-                       ,hex(Analysis().binToHexa(msg_bin_1[4:12]))
-                       ,hex(Analysis().binToHexa(msg_bin_1[12:20]) )
-                       ,hex(Analysis().binToHexa(msg_bin_1[20:28]) )
-                       ,hex(Analysis().binToHexa(msg_bin_1[28:32]+msg_bin_2[0:4]))
-                       ,hex(Analysis().binToHexa(msg_bin_2[4:12]) )]
-    
+                   ,hex(Analysis().binToHexa(msg_bin_0[12:20]))
+                   ,hex(Analysis().binToHexa(msg_bin_0[20:28]))
+                   ,hex(Analysis().binToHexa(msg_bin_0[28:32]+msg_bin_1[0:4]))
+                   ,hex(Analysis().binToHexa(msg_bin_1[4:12]))
+                   ,hex(Analysis().binToHexa(msg_bin_1[12:20]) )
+                   ,hex(Analysis().binToHexa(msg_bin_1[20:28]) )
+                   ,hex(Analysis().binToHexa(msg_bin_1[28:32]+msg_bin_2[0:4]))
+                   ,hex(Analysis().binToHexa(msg_bin_2[4:12]) )]
         new_Bytes= [data_ret[0],data_ret[1],data_ret[3],data_ret[2],data_ret[4],data_ret[8],data_ret[7],data_ret[6],data_ret[5]]
+        
         for i in range(len(data_ret)): 
             if new_Bytes[i] =='': new_Bytes[i]=0       
         else:   pass 
@@ -248,6 +249,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         if irq_tra_sig>0x0:
             found_msg =True
             if out_msg: self.logger.info(f'Found Message in the buffer (irq_tra_sig = {irq_tra_sig})')
+            # Start read elink
             self.write_uhal_message(hw = hw, 
                                          node =self.get_ual_node(hw =hw, registerName = "reg10"), 
                                          registerName="reg10", 
@@ -258,7 +260,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
             self.logger.info(f'Nothing Found in the buffer (irq_tra_sig = {irq_tra_sig})')
         return found_msg 
     
-    def read_uhal_mopshub_message(self, reg =None, timeout=None, out_msg = True):
+    def read_uhal_mopshub_message(self, reg =None, timeout=None,  out_msg = True):
         hw = self.get_uhal_hardware()
         nodes = []
         reg_values = []
@@ -271,11 +273,11 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
                 # Send IPbus transactions
                 hw.dispatch()
                 time.sleep(timeout)
-                if out_msg: self.logger.info(f'Read reg {r} Value = {hex(reg_value.value())}')
+                if out_msg: self.logger.info(f'Read {r} Value = {hex(reg_value.value())}')
                 reg_values = np.append(reg_values,hex(reg_value.value()))    
             respmsg = 1
             t = time.time()
-            data, responsereg =  self.build_response_sdo_msg(reg = reg_values ,out_msg=out_msg)      
+            data, responsereg =  self.build_response_sdo_msg(reg = reg_values, out_msg=out_msg)      
             cobid = int(data[0],16)
             data_ret = [0 for b in np.arange(len(data)-1)]
             for i in np.arange(len(data_ret)): data_ret[i] = int(data[i+1],16)
@@ -290,7 +292,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
     def  return_valid_message(self, nodeId, index, subindex, cobid_ret, data_ret, SDO_TX, SDO_RX,timeout):
         messageValid = False
         status = 0
-        respmsg, responsereg = None, None
+        respmsg, responsereg = 0, None
         messageValid_queue = False
         t0 = time.perf_counter()
         while time.perf_counter() - t0 < 3000 / 1000 and messageValid_queue == False:
@@ -300,6 +302,8 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
                                     and data_ret[0] in [0x80, 0x43, 0x47, 0x4b, 0x4f, 0x42] 
                                     and int.from_bytes([data_ret[1], data_ret[2]], 'little') == index
                                     and data_ret[3] == subindex) 
+                    
+                    
                     if (messageValid_queue):
                         del self.__uhalMsgQueue[i]
                         break
@@ -318,7 +322,6 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
             data = []
             for i in range(nDatabytes-1): 
                 data.append(data_ret[4 + i])
-            #print("Data = ", data,data_ret)
             return int.from_bytes(data, 'little'), messageValid_queue, status, respmsg, responsereg
         else:
             status = 0
@@ -326,8 +329,142 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
                  f' {index:04X}:{subindex:02X})')
             self.__cnt["messageInvalid_queue"]=self.__cnt["messageInvalid_queue"]+1
             return None, messageValid_queue, status, respmsg, responsereg
+    def read_adc(self,hw, bus_id,timeout):
+        self.logger.debug(f'CIC Channel {bus_id} - ADC readout')
 
-    def read_sdo_uhal(self, hw = None,bus= None, nodeId=None, index=None, subindex=None, timeout=1, SDO_TX=0x600, SDO_RX=0x580,out_msg=None):
+        adc_result = [[int(), int()] for _ in range(4)]
+        adc_info = []
+        self.logger.debug("Read ADC channels:")
+        counter = 0
+        for address in self.__address_byte:
+            #adc_out = self.spi.xfer2([address, 0x00, 0x00, 0x00, 0x00])
+            _, _, _, adc_out =  self.read_monitoring_uhal(hw =hw,
+                                                              cobid = 0x20,
+                                                              spi_reg =address,
+                                                              spi_id=bus_id,
+                                                              timeout=timeout, 
+                                                              out_msg =False)
+                     
+            time.sleep(0.05)
+            adc_info.append(adc_out)
+            if adc_out[4] == 255:
+                adc_result[int(bin(adc_out[4])[6:][:2], 2)][0] = self.__address_byte.index(address)
+                adc_result[int(bin(adc_out[4])[6:][:2], 2)][1] = -1
+            elif bin(adc_out[4])[6:][:2] in {'00', '01', '10'}:
+                if bin(adc_out[4])[9:] == '1':
+                    self.logger.warning(
+                        f"OF-Error during ADC Readout of phy. channel {int(bin(adc_out[4])[6:][:2], 2)}")
+                    self.cnt[f"OF-ERROR Channel {int(bin(adc_out[4])[6:][:2], 2)}"] += 1
+                    self.logger.warning(adc_out[4])
+                if bin(adc_out[4])[8:][:1] == '1':
+                    self.logger.warning(
+                        f"OD-Error during ADC Readout of phy. channel {int(bin(adc_out[4])[6:][:2], 2)}")
+                    self.cnt[f"OD-ERROR Channel {int(bin(adc_out[4])[6:][:2], 2)}"] += 1
+                    self.logger.warning(adc_out[4])
+                try:
+                    if bin(adc_out[4])[6:][:2] == '01':
+                        value = round(((adc_out[2] * 256 + adc_out[3]) * 0.03814697), 3)
+                    else:
+                        value = round(((adc_out[2] * 256 + adc_out[3]) * 0.03814697 / 1000), 3)
+                    adc_result[int(bin(adc_out[4])[6:][:2], 2)][0] = int(bin(adc_out[4])[6:][:2], 2)
+                    adc_result[int(bin(adc_out[4])[6:][:2], 2)][1] = value  # 2,5V Ref
+                except ZeroDivisionError:
+                    adc_result[int(bin(adc_out[4])[6:][:2], 2)][0] = int(bin(adc_out[4])[6:][:2], 2)
+                    adc_result[int(bin(adc_out[4])[6:][:2], 2)][1] = -1
+            elif bin(adc_out[4])[6:][:2] == '11':
+                if bin(adc_out[4])[9:] == '1':
+                    self.logger.warning(
+                        f"OF-Error during ADC Readout of phy. channel {int(bin(adc_out[4])[6:][:2], 2)}")
+                    self.cnt[f"OF-ERROR Channel {int(bin(adc_out[4])[6:][:2], 2)}"] += 1
+                    self.logger.warning(adc_out[4])
+                if bin(adc_out[4])[8:][:1] == '1':
+                    self.logger.warning(
+                        f"OD-Error during ADC Readout of phy. channel {int(bin(adc_out[4])[6:][:2], 2)}")
+                    self.cnt[f"OF-ERROR Channel {int(bin(adc_out[4])[6:][:2], 2)}"] += 1
+                    self.logger.warning(adc_out[4])
+                try:
+                    v_ntc = round(((adc_out[2] * 256 + adc_out[3]) * 0.03814697 / 1000), 3)
+                    r_ntc = v_ntc * (20 / 2.5)
+                    value = round((298.15 / (1 - (298.15 / 3435) * np.log(10 / r_ntc))) - 273.15, 3)
+                    adc_result[int(bin(adc_out[4])[6:][:2], 2)][0] = int(bin(adc_out[4])[6:][:2], 2)
+                    adc_result[int(bin(adc_out[4])[6:][:2], 2)][1] = value
+                except ZeroDivisionError:
+                    adc_result[int(bin(adc_out[4])[6:][:2], 2)][0] = int(bin(adc_out[4])[6:][:2], 2)
+                    adc_result[int(bin(adc_out[4])[6:][:2], 2)][1] = -1
+            else:
+                adc_result[self.__address_byte.index(address)][0] = self.__address_byte.index(address)
+                adc_result[self.__address_byte.index(address)][1] = -1
+                counter += 1
+                self.cnt["error_cnt"] += 1
+                if counter % 5 == 0:
+                    self.cnt["bad_readout"] += 1
+                    self.logger.warning(f"Bad readout - {adc_result} - {self.cnt}")
+
+        if self.cnt["bad_readout"] % 3 == 1:
+            self.cnt["reset_cnt"] += 1
+            #self.cs5523_startup(spi_cs, bus_id, mp_id)
+            self.logger.warning(f"Restart ADC on Bus {bus_id}")
+
+        # print(f"ADC readout finished: Bus_id: {bus_id} - {adc_result}")
+        self.logger.debug(f"ADC readout finished: Bus_id: {bus_id} - {adc_result}")
+        return
+    
+    
+    def read_monitoring_uhal(self,hw =None, spi_reg =None, spi_id=None,cobid = 0X20, timeout=1,out_msg=None):
+        status =0;
+        respmsg, responsereg  = 0, None
+        #build Payload in a CAN SDO format
+        mon_reg6_hex = Analysis().binToHexa(bin(cobid)[2:].zfill(8)+
+                                            bin(spi_id)[2:].zfill(8)+
+                                            bin(spi_reg)[2:].zfill(8)+
+                                            bin(0)[2:].zfill(8)) 
+        try:
+            reqmsg =  self.write_uhal_mopshub_message(hw =hw, 
+                                                  data=[mon_reg6_hex,0x0,0x0,0xa], 
+                                                  reg = ["reg6","reg7","reg8","reg9"], 
+                                                  timeout=timeout, 
+                                                  out_msg = out_msg)     
+        except:
+            reqmsg = 0
+        #read the response from the socket
+        _frame  =  self.read_uhal_mopshub_message(reg = ["reg0","reg1","reg2"], 
+                                                        timeout=timeout, 
+                                                        out_msg = out_msg) 
+        hw.dispatch()
+        _, msg_ret,respmsg_ret, responsereg_ret, t = _frame
+        if (not all(m is None for m in _frame[0:2])):
+        #    data_ret, messageValid, status,respmsg, responsereg  =  self.return_valid_message(nodeId=nodeId,
+        #                                                                                      index=index, 
+        #                                                                                      subindex=subindex,
+        #                                                                                      cobid_ret=cobid_ret,
+        #                                                                                      data_ret=msg_ret,
+        #                                                                                      SDO_TX=SDO_TX, SDO_RX=SDO_RX,
+        #                                                                                      timeout=timeout)
+        #    if responsereg is None: 
+        #        responsereg = responsereg_ret 
+        #        respmsg = respmsg_ret 
+            
+            responsereg_ret = bin(int(responsereg_ret,16))[2:].zfill(96)
+            cobid_ret    = hex(Analysis().binToHexa(responsereg_ret[0:8]))
+            spi_id_ret   = hex(Analysis().binToHexa(responsereg_ret[8:16]))
+            spi_reg_ret  = hex(Analysis().binToHexa(responsereg_ret[16:24]))
+            adc_out = [hex(Analysis().binToHexa(responsereg_ret[24:32])),
+                            hex(Analysis().binToHexa(responsereg_ret[32:40])),
+                            hex(Analysis().binToHexa(responsereg_ret[40:48])),
+                            hex(Analysis().binToHexa(responsereg_ret[48:56])),
+                            hex(Analysis().binToHexa(responsereg_ret[56:64]))]
+            
+            if out_msg: self.logger.info(f'cobid_ret:{cobid_ret}|| spi_id_ret: {spi_id_ret}||spi_reg_ret:{spi_reg_ret}||adc_out:{adc_out})')
+            #adc_out =[float.fromhex(adc_out[i]) for i in range(len(adc_out))]
+            adc_out =[int(adc_out[i],16) for i in range(len(adc_out))]
+            return cobid_ret, spi_id_ret, spi_reg_ret, adc_out
+        else:
+            status = 0
+        #     if responsereg is not None: return None, reqmsg, hex(responsereg),respmsg, responsereg, status
+            return None, None, None, None 
+        #
+
+    def read_sdo_uhal(self,hw= None, bus= None, nodeId=None, index=None, subindex=None, timeout=1, SDO_TX=0x600, SDO_RX=0x580,out_msg=None):
         """Read an object via |SDO|
     
         Currently expedited and segmented transfer is supported by this method.
@@ -353,7 +490,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
             In case of errors
         """
         status =0;
-        respmsg, responsereg  = None, None
+        respmsg, responsereg  = 0, None
         if nodeId is None or index is None or subindex is None:
             self.logger.warning('SDO read protocol cancelled before it could begin.')               
             self.__cnt["SDO read total"] += 1
@@ -361,6 +498,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         hw =  self.get_uhal_hardware()
         #build Payload in a CAN SDO format
         reg6_hex, reg7_hex, reg8_hex, requestreg = self.build_request_sdo_msg(cobid = SDO_TX+nodeId, bus = bus,  index=index, subindex=subindex)
+
         #write the Request to the Socket
         try:
             reqmsg =  self.write_uhal_mopshub_message(hw =hw, 
@@ -403,6 +541,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
             status = 0
             if responsereg is not None: return None, reqmsg, hex(responsereg),respmsg, responsereg, status
             else : return None, reqmsg, hex(requestreg),respmsg, responsereg, status   
+
                                 
     def build_request_sdo_msg(self,bus = None, cobid = None, index=None, subindex=None,msg_0 =0x40):
         max_data_bytes = 8
@@ -410,7 +549,6 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         msg[0] = msg_0
         msg[1], msg[2] = index.to_bytes(2, 'little')
         msg[3] = subindex
-
         msg_bin_0 = bin(msg[0])[2:].zfill(8)
         msg_bin_1 = bin(msg[1])[2:].zfill(8)
         msg_bin_2 = bin(msg[2])[2:].zfill(8)
@@ -418,13 +556,13 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         reg6_hex = Analysis().binToHexa(bin(cobid)[2:].zfill(12)#12bits
                                         +msg_bin_0#8bits
                                         +msg_bin_2#8bits
-                                        +bin(0)[2:].zfill(4)#4bits
+                                        +msg_bin_1[0:4]#4bits
                                         )
         
-        reg7_hex = Analysis().binToHexa(bin(0)[2:].zfill(4)#4bits
+        reg7_hex = Analysis().binToHexa(msg_bin_1[4:8]#4bits
                                         +msg_bin_3#8bits
                                         +bin(bus)[2:].zfill(8)#8bits
-                                        +msg_bin_1#8bits
+                                        +bin(0)[2:].zfill(8)#8bits
                                         +bin(0)[2:].zfill(4))#4bits
                                         
         reg8_hex = Analysis().binToHexa(bin(0)[2:].zfill(32))
@@ -432,17 +570,23 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         requestreg = Analysis().binToHexa(bin(cobid)[2:].zfill(12)#12bits
                                         +msg_bin_0#8bits
                                         +msg_bin_2#8bits
-                                        +bin(0)[2:].zfill(4)#4bits
-                                        +bin(0)[2:].zfill(4)#4bits
+                                        +msg_bin_1#bin(0)[2:].zfill(4)#4bits
+                                        #+bin(0)[2:].zfill(4)#4bits
                                         +msg_bin_3#8bits
                                         +bin(bus)[2:].zfill(8)#8bits
-                                        +msg_bin_1#8bits
+                                        +bin(0)[2:].zfill(8)#it was msg_bin_1 8bits
                                         +bin(0)[2:].zfill(4)
                                         +bin(0)[2:].zfill(32))
         return reg6_hex, reg7_hex, reg8_hex, requestreg
     
     
-    def read_mopshub_adc_channels(self, hw, bus_range, file, directory , nodeId, outputname, outputdir, n_readings,timeout):
+    def create_mopshub_adc_data_file(self,outputname, outputdir):
+        # Write header to the data
+        fieldnames = ['time',"test_tx",'bus_id',"nodeId","adc_ch","index","sub_index","adc_data", "adc_data_converted","reqmsg","requestreg","respmsg","responsereg", "status"]
+        csv_writer = AnalysisUtils().build_data_base(fieldnames=fieldnames,outputname = outputname, directory = outputdir)        
+        return csv_writer
+        
+    def read_mopshub_adc_channels(self, hw, bus_range, file, directory,outputname, outputdir , nodeId, n_readings,timeout,csv_writer):
         """Start actual CANopen communication
         This function contains an endless loop in which it is looped over all
         ADC channels. Each value is read using
@@ -455,27 +599,26 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         _adc_index = list(dev["adc_channels_reg"]["adc_index"])[0]
         _channelItems = [int(channel) for channel in list(_adc_channels_reg)]
         # Write header to the data
-        fieldnames = ['time',"test_tx",'bus_id',"nodeId","adc_ch","index","sub_index","adc_data", "adc_data_converted","reqmsg","requestreg","respmsg","responsereg", "status"]
-        csv_writer = AnalysisUtils().build_data_base(fieldnames=fieldnames,outputname = outputname, directory = outputdir)
+        #fieldnames = ['time',"test_tx",'bus_id',"nodeId","adc_ch","index","sub_index","adc_data", "adc_data_converted","reqmsg","requestreg","respmsg","responsereg", "status"]
+        #csv_writer = AnalysisUtils().build_data_base(fieldnames=fieldnames,outputname = outputname, directory = outputdir)
         monitoringTime = time.time()
         for point in np.arange(0, n_readings): 
             for bus in bus_range:
                 for node in nodeId:    
                     # Read ADC channels
                     for c in tqdm(np.arange(len(_channelItems)),colour="green"):
-                    #for c in np.arange(len(_channelItems)):
                         channel =  _channelItems[c]
                         subindex = channel - 2
-                        data_point, reqmsg, requestreg, respmsg,responsereg , status =  self.read_sdo_uhal(hw = hw,
-                                                                                                              bus = bus, 
-                                                                                                              nodeId= node, 
-                                                                                                              index = int(_adc_index, 16), 
-                                                                                                              subindex = subindex, 
-                                                                                                              timeout = timeout,
-                                                                                                              out_msg = True)                   
+                        data_point, reqmsg, requestreg, respmsg,responsereg , status =  self.read_sdo_uhal(hw =hw,
+                                                                                                           bus = bus, 
+                                                                                                           nodeId= node, 
+                                                                                                           index = int(_adc_index, 16), 
+                                                                                                           subindex = subindex, 
+                                                                                                           timeout = timeout,
+                                                                                                           out_msg = False)                   
                         
                         #await asyncio.sleep(0.1)
-                        time.sleep(0.1)
+                        time.sleep(0.05)
                         ts = time.time()
                         elapsedtime = ts - monitoringTime
                         if data_point is not None:
@@ -483,7 +626,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
                             adc_converted = round(adc_converted, 3)
                             self.logger.info(f'[{point}] Got data for channel {channel} [{hex(subindex)}]: = {adc_converted}')
                         else:
-                            adc_converted = 0
+                            adc_converted = None
                         csv_writer.writerow((str(elapsedtime),
                                              str(1),
                                              str(bus),
@@ -500,7 +643,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
                                              status))
         
         self.logger.info(f'No. of invalid responses = {self.__cnt["messageInvalid_queue"]}|| No. of failed responses {self.__cnt["messageFailed_response"]}')
-        self.logger.notice("ADC data are saved to %s/%s" % (outputdir,outputname))
+        #self.logger.notice("ADC data are saved to %s/%s" % (outputdir,outputname))
 
     # Setter and getter functions
     def set_uhal_hardware(self, x):
