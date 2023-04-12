@@ -7,7 +7,7 @@ Application:
   device_name: MOPS
   device_version: v1.2
   icon_dir: canmopsGUI/icons/icon_mops.png
-  refresh_rate: 100
+  refresh_rate: 500
   index_items:
     '0x1000':
       description_items: <html><b> Device type</b> [Default 191(hex)]</b></html>

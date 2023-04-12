@@ -56,10 +56,10 @@ def test_uhal_wrapper():
     adc_out = []
     channel_value = ("UH", "IMON", "VCAN", "Temperature")
     address_byte = [0x80, 0x88, 0x90, 0x98, 0x80]
-    #wrapper.read_adc(hw =hw,bus_id = 0x0,timeout= timeout)
+    wrapper.read_adc(hw =hw,bus_id = 0x0,timeout= timeout)
     cobid_ret, spi_id_ret, spi_reg_ret, adc_out =  wrapper.read_monitoring_uhal(hw =hw,
                                                                                  cobid =0X20,
-                                                                                 spi_reg =0x88,
+                                                                                 spi_reg =0x98,
                                                                                  spi_id=0x0,
                                                                                  timeout=timeout, 
                                                                                  out_msg =True)

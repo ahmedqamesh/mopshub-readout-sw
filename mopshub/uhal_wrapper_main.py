@@ -235,7 +235,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
     def enable_read_signal (self,timeout =None, out_msg = None):
          #wait for interrupt signal from FIFO
         hw = self.get_uhal_hardware()
-        count, count_limit = 0, 5
+        count, count_limit = 0, 2
         #irq_tra_sig = 0x0
         while (count !=count_limit):
             irq_tra_sig =   self.read_uhal_message(hw = hw, 
@@ -257,7 +257,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
                                          timeout=timeout, out_msg = False)  
         else: 
             found_msg = False
-            self.logger.info(f'Nothing Found in the buffer (irq_tra_sig = {irq_tra_sig})')
+            self.logger.warning(f'Nothing Found in the buffer (irq_tra_sig = {irq_tra_sig})')
         return found_msg 
     
     def read_uhal_mopshub_message(self, reg =None, timeout=None,  out_msg = True):
@@ -295,7 +295,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         respmsg, responsereg = 0, None
         messageValid_queue = False
         t0 = time.perf_counter()
-        while time.perf_counter() - t0 < 3000 / 1000 and messageValid_queue == False:
+        while time.perf_counter() - t0 < 1 and messageValid_queue == False:
                 # check the message validity [nodid, msg size,...]
                 for i, (cobid_ret, data_ret, t) in zip(range(len(self.__uhalMsgQueue)), self.__uhalMsgQueue):
                     messageValid_queue = (cobid_ret == SDO_RX + nodeId
@@ -329,6 +329,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
                  f' {index:04X}:{subindex:02X})')
             self.__cnt["messageInvalid_queue"]=self.__cnt["messageInvalid_queue"]+1
             return None, messageValid_queue, status, respmsg, responsereg
+    
     def read_adc(self,hw, bus_id,timeout):
         self.logger.debug(f'CIC Channel {bus_id} - ADC readout')
 
@@ -344,53 +345,62 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
                                                               spi_id=bus_id,
                                                               timeout=timeout, 
                                                               out_msg =False)
+            time.sleep(0.9)
+            _, _, _, adc_out =  self.read_monitoring_uhal(hw =hw,
+                                                              cobid = 0x20,
+                                                              spi_reg =address,
+                                                              spi_id=bus_id,
+                                                              timeout=timeout, 
+                                                              out_msg =False)
                      
-            time.sleep(0.05)
+            last_bits = bin(adc_out[4])[6:][:2]
             adc_info.append(adc_out)
+            print(hex(address),last_bits, adc_out, bin(adc_out[4]), bin(adc_out[4])[2:])
             if adc_out[4] == 255:
-                adc_result[int(bin(adc_out[4])[6:][:2], 2)][0] = self.__address_byte.index(address)
-                adc_result[int(bin(adc_out[4])[6:][:2], 2)][1] = -1
-            elif bin(adc_out[4])[6:][:2] in {'00', '01', '10'}:
+                adc_result[int(last_bits, 2)][0] = self.__address_byte.index(address)
+                adc_result[int(last_bits, 2)][1] = -1
+            # search in the last four bits channel indicator bits 
+            elif last_bits in {'00', '01', '10'}:#indicates which physical inputs to be converted
                 if bin(adc_out[4])[9:] == '1':
                     self.logger.warning(
-                        f"OF-Error during ADC Readout of phy. channel {int(bin(adc_out[4])[6:][:2], 2)}")
-                    self.cnt[f"OF-ERROR Channel {int(bin(adc_out[4])[6:][:2], 2)}"] += 1
+                        f"OF-Error during ADC Readout of phy. channel {int(last_bits, 2)}")
+                    self.cnt[f"OF-ERROR Channel {int(last_bits, 2)}"] += 1
                     self.logger.warning(adc_out[4])
                 if bin(adc_out[4])[8:][:1] == '1':
                     self.logger.warning(
-                        f"OD-Error during ADC Readout of phy. channel {int(bin(adc_out[4])[6:][:2], 2)}")
-                    self.cnt[f"OD-ERROR Channel {int(bin(adc_out[4])[6:][:2], 2)}"] += 1
+                        f"OD-Error during ADC Readout of phy. channel {int(last_bits, 2)}")
+                    self.cnt[f"OD-ERROR Channel {int(last_bits, 2)}"] += 1
                     self.logger.warning(adc_out[4])
-                try:
-                    if bin(adc_out[4])[6:][:2] == '01':
+                try:#ch1 is Ucurr(in volt) has a apecial conversion
+                    if last_bits == '01':
                         value = round(((adc_out[2] * 256 + adc_out[3]) * 0.03814697), 3)
                     else:
                         value = round(((adc_out[2] * 256 + adc_out[3]) * 0.03814697 / 1000), 3)
-                    adc_result[int(bin(adc_out[4])[6:][:2], 2)][0] = int(bin(adc_out[4])[6:][:2], 2)
-                    adc_result[int(bin(adc_out[4])[6:][:2], 2)][1] = value  # 2,5V Ref
+                    adc_result[int(last_bits, 2)][0] = int(last_bits, 2)
+                    adc_result[int(last_bits, 2)][1] = value  # 2,5V Ref
                 except ZeroDivisionError:
-                    adc_result[int(bin(adc_out[4])[6:][:2], 2)][0] = int(bin(adc_out[4])[6:][:2], 2)
-                    adc_result[int(bin(adc_out[4])[6:][:2], 2)][1] = -1
-            elif bin(adc_out[4])[6:][:2] == '11':
+                    adc_result[int(last_bits, 2)][0] = int(last_bits, 2)
+                    adc_result[int(last_bits, 2)][1] = -1
+            elif last_bits == '11':
                 if bin(adc_out[4])[9:] == '1':
                     self.logger.warning(
-                        f"OF-Error during ADC Readout of phy. channel {int(bin(adc_out[4])[6:][:2], 2)}")
-                    self.cnt[f"OF-ERROR Channel {int(bin(adc_out[4])[6:][:2], 2)}"] += 1
+                        f"OF-Error during ADC Readout of phy. channel {int(last_bits, 2)}")
+                    self.cnt[f"OF-ERROR Channel {int(last_bits, 2)}"] += 1
                     self.logger.warning(adc_out[4])
                 if bin(adc_out[4])[8:][:1] == '1':
                     self.logger.warning(
-                        f"OD-Error during ADC Readout of phy. channel {int(bin(adc_out[4])[6:][:2], 2)}")
-                    self.cnt[f"OF-ERROR Channel {int(bin(adc_out[4])[6:][:2], 2)}"] += 1
+                        f"OD-Error during ADC Readout of phy. channel {int(last_bits, 2)}")
+                    self.cnt[f"OF-ERROR Channel {int(last_bits, 2)}"] += 1
                     self.logger.warning(adc_out[4])
                 try:
                     v_ntc = round(((adc_out[2] * 256 + adc_out[3]) * 0.03814697 / 1000), 3)
                     r_ntc = v_ntc * (20 / 2.5)
                     value = round((298.15 / (1 - (298.15 / 3435) * np.log(10 / r_ntc))) - 273.15, 3)
-                    adc_result[int(bin(adc_out[4])[6:][:2], 2)][0] = int(bin(adc_out[4])[6:][:2], 2)
-                    adc_result[int(bin(adc_out[4])[6:][:2], 2)][1] = value
+                    adc_result[int(last_bits, 2)][0] = int(last_bits, 2)
+                    adc_result[int(last_bits, 2)][1] = value
                 except ZeroDivisionError:
-                    adc_result[int(bin(adc_out[4])[6:][:2], 2)][0] = int(bin(adc_out[4])[6:][:2], 2)
-                    adc_result[int(bin(adc_out[4])[6:][:2], 2)][1] = -1
+                    adc_result[int(last_bits, 2)][0] = int(last_bits, 2)
+                    adc_result[int(last_bits, 2)][1] = -1
             else:
                 adc_result[self.__address_byte.index(address)][0] = self.__address_byte.index(address)
                 adc_result[self.__address_byte.index(address)][1] = -1
@@ -433,26 +443,16 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         hw.dispatch()
         _, msg_ret,respmsg_ret, responsereg_ret, t = _frame
         if (not all(m is None for m in _frame[0:2])):
-        #    data_ret, messageValid, status,respmsg, responsereg  =  self.return_valid_message(nodeId=nodeId,
-        #                                                                                      index=index, 
-        #                                                                                      subindex=subindex,
-        #                                                                                      cobid_ret=cobid_ret,
-        #                                                                                      data_ret=msg_ret,
-        #                                                                                      SDO_TX=SDO_TX, SDO_RX=SDO_RX,
-        #                                                                                      timeout=timeout)
-        #    if responsereg is None: 
-        #        responsereg = responsereg_ret 
-        #        respmsg = respmsg_ret 
-            
             responsereg_ret = bin(int(responsereg_ret,16))[2:].zfill(96)
             cobid_ret    = hex(Analysis().binToHexa(responsereg_ret[0:8]))
             spi_id_ret   = hex(Analysis().binToHexa(responsereg_ret[8:16]))
             spi_reg_ret  = hex(Analysis().binToHexa(responsereg_ret[16:24]))
-            adc_out = [hex(Analysis().binToHexa(responsereg_ret[24:32])),
-                            hex(Analysis().binToHexa(responsereg_ret[32:40])),
-                            hex(Analysis().binToHexa(responsereg_ret[40:48])),
-                            hex(Analysis().binToHexa(responsereg_ret[48:56])),
-                            hex(Analysis().binToHexa(responsereg_ret[56:64]))]
+            
+            adc_out =   [hex(Analysis().binToHexa(responsereg_ret[24:32])),
+                         hex(Analysis().binToHexa(responsereg_ret[32:40])),
+                         hex(Analysis().binToHexa(responsereg_ret[40:48])),
+                         hex(Analysis().binToHexa(responsereg_ret[48:56])),
+                         hex(Analysis().binToHexa(responsereg_ret[56:64]))]
             
             if out_msg: self.logger.info(f'cobid_ret:{cobid_ret}|| spi_id_ret: {spi_id_ret}||spi_reg_ret:{spi_reg_ret}||adc_out:{adc_out})')
             #adc_out =[float.fromhex(adc_out[i]) for i in range(len(adc_out))]
