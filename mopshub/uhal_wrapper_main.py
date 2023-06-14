@@ -43,6 +43,7 @@ from bs4 import BeautifulSoup #virtual env
 from typing import List, Any
 from random import randint
 import uhal
+
 import random
 #from csv import writer
 logger = Logger().setup_main_logger(name = " Lib Check ",console_loglevel=logging.INFO, logger_file = False)
@@ -94,6 +95,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
             self.logger_file.success('....Done Initialization!')
     
     def set_hw_connection(self):
+        self.logger.info(f'Starting a Thread for MOPSHUB')
         self.__uhalMsgThread = Thread(target=self.read_uhal_mopshub_message, args=(["reg0","reg1","reg2"], 0.001,  None))#self.between_thread_callback)
         self.__uhalMsgThread.start()  
                                
@@ -147,7 +149,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         reg_value = node.read()
         # Send IPbus transactions
         hw.dispatch()
-        if out_msg:  self.logger.info(f'{w_r} {hex(reg_value.value())} to {registerName}')
+        if out_msg:  self.logger.info(f'{w_r} {hex(reg_value.value())} : {registerName}')
         return reg_value
     
     def write_uhal_mopshub_message(self, hw =None, data=None,reg =None, timeout=None, out_msg= True):
@@ -178,7 +180,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         if out_msg and not status:  self.logger.warning(f'Writing mismatch in {registerName} [W: {hex(data)} |R:{hex(reg_ret_value.value())}]') 
         # Send IPbus transactions
         hw.dispatch()
-        time.sleep(timeout)
+        #time.sleep(timeout)
         return reqmsg         
     
     def build_response_sdo_msg(self, reg =[], out_msg = True):
@@ -272,7 +274,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
                 reg_value = nodes[reg.index(r)].read()
                 # Send IPbus transactions
                 hw.dispatch()
-                time.sleep(timeout)
+                #time.sleep(timeout)#The code has really developed afer commenting this line
                 if out_msg: self.logger.info(f'Read {r} Value = {hex(reg_value.value())}')
                 reg_values = np.append(reg_values,hex(reg_value.value()))    
             respmsg = 1
@@ -345,17 +347,9 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
                                                               spi_id=bus_id,
                                                               timeout=timeout, 
                                                               out_msg =False)
-            time.sleep(0.9)
-            _, _, _, adc_out =  self.read_monitoring_uhal(hw =hw,
-                                                              cobid = 0x20,
-                                                              spi_reg =address,
-                                                              spi_id=bus_id,
-                                                              timeout=timeout, 
-                                                              out_msg =False)
-                     
+            time.sleep(0.7)                     
             last_bits = bin(adc_out[4])[6:][:2]
             adc_info.append(adc_out)
-            print(hex(address),last_bits, adc_out, bin(adc_out[4]), bin(adc_out[4])[2:])
             if adc_out[4] == 255:
                 adc_result[int(last_bits, 2)][0] = self.__address_byte.index(address)
                 adc_result[int(last_bits, 2)][1] = -1
@@ -428,14 +422,11 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
                                             bin(spi_id)[2:].zfill(8)+
                                             bin(spi_reg)[2:].zfill(8)+
                                             bin(0)[2:].zfill(8)) 
-        try:
-            reqmsg =  self.write_uhal_mopshub_message(hw =hw, 
-                                                  data=[mon_reg6_hex,0x0,0x0,0xa], 
-                                                  reg = ["reg6","reg7","reg8","reg9"], 
-                                                  timeout=timeout, 
-                                                  out_msg = out_msg)     
-        except:
-            reqmsg = 0
+        reqmsg =  self.write_uhal_mopshub_message(hw =hw, 
+                                              data=[mon_reg6_hex,0x0,0x0,0xa], 
+                                              reg = ["reg6","reg7","reg8","reg9"], 
+                                              timeout=timeout, 
+                                              out_msg = out_msg)     
         #read the response from the socket
         _frame  =  self.read_uhal_mopshub_message(reg = ["reg0","reg1","reg2"], 
                                                         timeout=timeout, 
@@ -453,10 +444,13 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
                          hex(Analysis().binToHexa(responsereg_ret[40:48])),
                          hex(Analysis().binToHexa(responsereg_ret[48:56])),
                          hex(Analysis().binToHexa(responsereg_ret[56:64]))]
-            
+            xadc_code =  Analysis().binToHexa(responsereg_ret[64:76])
+            temp_xadc = xadc_code*503.975/4096-273.15
             if out_msg: self.logger.info(f'cobid_ret:{cobid_ret}|| spi_id_ret: {spi_id_ret}||spi_reg_ret:{spi_reg_ret}||adc_out:{adc_out})')
-            #adc_out =[float.fromhex(adc_out[i]) for i in range(len(adc_out))]
+            if out_msg: self.logger.info(f'FPGA temp_xadc:{round(temp_xadc,2)} C')
             adc_out =[int(adc_out[i],16) for i in range(len(adc_out))]
+            last_bits = bin(adc_out[4])[2:][4:]
+            print(hex(spi_reg),last_bits[1:3], adc_out, bin(adc_out[4])[2:])
             return cobid_ret, spi_id_ret, spi_reg_ret, adc_out
         else:
             status = 0
@@ -493,7 +487,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         respmsg, responsereg  = 0, None
         if nodeId is None or index is None or subindex is None:
             self.logger.warning('SDO read protocol cancelled before it could begin.')               
-            self.__cnt["SDO read total"] += 1
+            self.__cnt["SDO read total"] = self.__cnt["SDO read total"]+1
             return None, None, None,respmsg, responsereg , status 
         hw =  self.get_uhal_hardware()
         #build Payload in a CAN SDO format
@@ -617,8 +611,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
                                                                                                            timeout = timeout,
                                                                                                            out_msg = False)                   
                         
-                        #await asyncio.sleep(0.1)
-                        time.sleep(0.05)
+                        #time.sleep(0.01) #It makes no difference
                         ts = time.time()
                         elapsedtime = ts - monitoringTime
                         if data_point is not None:
@@ -642,7 +635,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
                                              str(responsereg), 
                                              status))
         
-        self.logger.info(f'No. of invalid responses = {self.__cnt["messageInvalid_queue"]}|| No. of failed responses {self.__cnt["messageFailed_response"]}')
+        self.logger.info(f'No. of invalid responses = {self.__cnt["messageInvalid_queue"]}|| No. of failed responses = {self.__cnt["messageFailed_response"]-1}')
         #self.logger.notice("ADC data are saved to %s/%s" % (outputdir,outputname))
 
     # Setter and getter functions
