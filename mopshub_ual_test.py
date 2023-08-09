@@ -7,13 +7,36 @@ import time
 import os
 import binascii
 import struct
+import serial
+import time
 rootdir = os.path.dirname(os.path.abspath(__file__)) 
 sys.path.insert(0, rootdir+'/mopshub')
 from analysis_utils      import AnalysisUtils
 from analysis            import Analysis
+from design_info         import DesignInfo
 from uhal_wrapper_main   import UHALWrapper
 
-timeout = 0.06
+timeout = 0.2
+sm_info = DesignInfo()
+
+def test_uart(bitrate = 115200, read_sm = ["0","1","2","3","4","5","6","7"]):
+    ser = serial.Serial('/dev/ttyUSB2', parity=serial.PARITY_NONE,baudrate= bitrate, timeout=1
+                       , bytesize=serial.EIGHTBITS,
+                       stopbits=serial.STOPBITS_ONE)
+    #Write to Uart
+    
+    if not ser.isOpen():
+        ser.open()
+    for sm_id in read_sm: 
+        ser.write(bytearray(bytes.fromhex("0"+sm_id)))
+        #ser.write('6'.encode())
+        # Read from Uart
+        time.sleep(0.2)
+        Byte = ser.read() #read one byte
+        #Byte = ser.readline()
+        sm_info.get_sm_info(sm_id = int(sm_id), return_state = Byte)
+        #time.sleep(0.5)
+    
 def power_control(bus = None):
     #power On/off the bus
     print ("=========================Powering OFF================================")
@@ -23,7 +46,7 @@ def power_control(bus = None):
                                           bin(0)[2:].zfill(8)+
                                           bin(0)[2:].zfill(8)) 
     wrapper.write_uhal_mopshub_message(hw =hw, data=[power_reg6_hex,power_reg6_hex,power_reg6_hex,0xa], reg = ["reg6","reg7","reg8","reg9"], timeout=timeout)
-    time.sleep(2)
+    time.sleep(5)
     print ("=========================Powering ON================================")
     power_state = 0x31  
     power_reg6_hex = Analysis().binToHexa(bin(power_state)[2:].zfill(8)+
@@ -72,13 +95,7 @@ def read_mon_values():
                                                                                       spi_id=0x0,
                                                                                       timeout=timeout, 
                                                                                       out_msg =True) 
-def test_uhal_wrapper(bus = None,nodeId = None):
-    #print ("=========================regcsr================================")
-    #nodecsr = wrapper.get_ual_node(hw =hw, registerName = "regcsr")
-    #await wrapper.write_uhal_message(hw = hw, node =nodecsr, data=5, registerName="regcsr", timeout=timeout)
-    #await wrapper.read_uhal_message(node =nodecsr, registerName="regcsr", timeout=timeout)
-    #print ("=========================Read Reg================================")
-
+def flush_mopshub_fifo():
     #Flush The FIFO
     print ("======================Flush The FIFO================================")
     wrapper.write_uhal_message(hw = hw, 
@@ -86,6 +103,14 @@ def test_uhal_wrapper(bus = None,nodeId = None):
                                       registerName="reg11", 
                                       data = 0x1, 
                                       timeout=timeout)  
+
+def test_uhal_wrapper(bus = None,nodeId = None):
+    #print ("=========================regcsr================================")
+    #nodecsr = wrapper.get_ual_node(hw =hw, registerName = "regcsr")
+    #await wrapper.write_uhal_message(hw = hw, node =nodecsr, data=5, registerName="regcsr", timeout=timeout)
+    #await wrapper.read_uhal_message(node =nodecsr, registerName="regcsr", timeout=timeout)
+    #print ("=========================Read Reg================================")
+
     print ("=========================read SDO================================")
     # data_point, reqmsg, requestreg, respmsg,responsereg , status =  wrapper.read_sdo_uhal(hw =hw,
     #                                                                                       SDO_TX = 0x600,
@@ -111,14 +136,14 @@ def test_uhal_wrapper(bus = None,nodeId = None):
     #Example (2): write/read SDO message   
     print ("=========================write SDO message================")
     subindex=0xA
-    # data_point, reqmsg, requestreg, respmsg,responsereg , status =  wrapper.read_sdo_uhal(hw =hw,
-    #                                                                                         nodeId=nodeId, 
-    #                                                                                         index=0x2400,
-    #                                                                                         subindex=subindex,
-    #                                                                                         bus = bus,
-    #                                                                                         timeout=timeout, 
-    #                                                                                         out_msg =True)
-    #print(data_point, reqmsg, requestreg, respmsg,responsereg , status)
+    data_point, reqmsg, requestreg, respmsg,responsereg , status =  wrapper.read_sdo_uhal(hw =hw,
+                                                                                            nodeId=nodeId, 
+                                                                                            index=0x2400,
+                                                                                            subindex=subindex,
+                                                                                            bus = bus,
+                                                                                            timeout=timeout, 
+                                                                                            out_msg =True)
+    print(data_point, reqmsg, requestreg, respmsg,responsereg , status)
 
     # #  # PS. To visualise the data, Users can use the file $HOME/test_files/plot_adc.py
 if __name__ == '__main__':
@@ -126,14 +151,15 @@ if __name__ == '__main__':
     uri = "ipbusudp-2.0://192.168.200.16:50001"
     addressFilePath = "config_files/ipbus_example.xml"
     wrapper = UHALWrapper(load_config = True)
+    
     # PART 2: Creating the HwInterface
     hw = wrapper.config_uhal_hardware()
     bus = 1
     NodeIds = [0]
-    reqmsg = 1
     #power On/off the bus
     #power_control(bus = bus)
-    read_adc_iterations(n_readings = 2,bus_range = [1],NodeIds = NodeIds)
+    flush_mopshub_fifo()
+    read_adc_iterations(n_readings = 10,bus_range = [1],NodeIds = NodeIds)
     #read_mon_values()
-    #test_uhal_wrapper(bus = bus,nodeId =NodeIds[0])
-
+    #Test Uart
+    #test_uart(bitrate = 115200)

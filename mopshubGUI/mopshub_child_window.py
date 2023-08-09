@@ -66,7 +66,7 @@ class mopshubWindow(QWidget):
     def update_opcua_config_box(self):
         self.conf_cic = AnalysisUtils().open_yaml_file(file=config_dir + "mopshub_config.yaml", directory=lib_dir)
         self.__CrateID = self.conf_cic["Crate ID"]
-        self.__cic_num = len(self.conf_cic["CIC"])
+        self.__cic_num = len(self.conf_cic["MOPSHUB"])
 
     def Ui_ApplicationWindow(self):
         self.mopshubWindow = QMainWindow()
@@ -508,8 +508,8 @@ class mopshubWindow(QWidget):
         
     def check_mops(self, c, b, m):
         try:
-            port_num = self.conf_cic["CIC"]["CIC " + str(c)]["Port "+str(b)]["MOPS " + str(m)]["Port"]
-            if (port_num == b and self.conf_cic["CIC"]["CIC " + str(c)]["Port "+str(b)]["MOPS " + str(m)]["Status"]== True):
+            port_num = self.conf_cic["MOPSHUB"]["CIC " + str(c)]["Port "+str(b)]["MOPS " + str(m)]["Port"]
+            if (port_num == b and self.conf_cic["MOPSHUB"]["CIC " + str(c)]["Port "+str(b)]["MOPS " + str(m)]["Status"]== True):
                 msg = "Found: CIC " + str(c)+" Port " + str(b)+" MOPS " + str(m)
                 status = True
                 self.set_textBox_message(comunication_object="INFO", msg=msg)
@@ -522,21 +522,21 @@ class mopshubWindow(QWidget):
         return status
              
     def get_nodeId(self,c = None,b= None,m= None):
-        self.__nodeId = self.conf_cic["CIC"]["CIC " + str(c)]["Port "+str(b)]["MOPS " + str(m)]["node_id"]
+        self.__nodeId = self.conf_cic["MOPSHUB"]["CIC " + str(c)]["Port "+str(b)]["MOPS " + str(m)]["node_id"]
         return self.__nodeId   
     
     def get_element_cic(self, cic_name):
-        element = list(self.conf_cic["CIC"].keys()).index(cic_name)
+        element = list(self.conf_cic["MOPSHUB"].keys()).index(cic_name)
         return element
     
     def get_element_bus(self, cic_name,bus_id):
-        element = list(self.conf_cic["CIC"][cic_name].keys()).index(bus_id)
+        element = list(self.conf_cic["MOPSHUB"][cic_name].keys()).index(bus_id)
         return element
     
     def get_true_bus_number(self, bus_id, cic_id, cic_name, with_cic = False):
         if with_cic: true_bus_number = (self.__n_buses - (bus_id + 1) - (2 * cic_id))
         else:
-            port = list(self.conf_cic["CIC"][cic_name].keys())[bus_id]
+            port = list(self.conf_cic["MOPSHUB"][cic_name].keys())[bus_id]
             true_bus_number = re.findall(r'\d+', port)[0] 
         return true_bus_number
     
@@ -545,7 +545,7 @@ class mopshubWindow(QWidget):
         return str(bus_id)
     
     def get_true_cic_number(self,cic_id):
-        cic_name  = list(self.conf_cic["CIC"].keys())[cic_id]
+        cic_name  = list(self.conf_cic["MOPSHUB"].keys())[cic_id]
         return cic_name
     
     def set_bus_enable(self, c, b):
@@ -554,11 +554,11 @@ class mopshubWindow(QWidget):
         cic_element = self.get_element_cic("CIC "+str(int(_cic_id)))
         _port_id = self.__n_buses -1 - int(_true_port_id)#self.get_reverse_bus_number(true_bus_number = int(_true_port_id), cic_id = int(_cic_id))
         
-        reg6_hex_on = Analysis().binToHexa(bin(0x91)[2:].zfill(8)+
+        reg6_hex_on = Analysis().binToHexa(bin(0x31)[2:].zfill(8)+
                                 bin(int(_true_port_id))[2:].zfill(8)+
                                 bin(0)[2:].zfill(8)+
                                 bin(0)[2:].zfill(8))
-        reg6_hex_off = Analysis().binToHexa(bin(0x90)[2:].zfill(8)+
+        reg6_hex_off = Analysis().binToHexa(bin(0x30)[2:].zfill(8)+
                                 bin(int(_true_port_id))[2:].zfill(8)+
                                 bin(0)[2:].zfill(8)+
                                 bin(0)[2:].zfill(8))
@@ -661,6 +661,7 @@ class mopshubWindow(QWidget):
         else:
             msg = "CIC " + _cic_id, "MOPS " + _mops_num, "Port " + _port_id, ": Not Found"
             self.set_textBox_message(comunication_object="ErrorFrame" , msg=str(msg)) 
+
     def update_adc_channels(self,c,b,m):
         gc.collect() 
         _dictionary = self.__dictionary_items

@@ -29,6 +29,7 @@ class AnalysisUtils(object):
         return cfg
     
     def dump_yaml_file(self,directory=None , file=None, loaded = None):
+        
         filename = os.path.join(directory, file)
         with open(filename, 'w') as ymlfile:
             yaml.dump(loaded, ymlfile, sort_keys=False)#default_flow_style=False
