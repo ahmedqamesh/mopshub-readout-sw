@@ -75,7 +75,7 @@ class MenuWindow(QWidget):
         plottingMenu.addAction(plotADC) 
 
     def set_opcua_settings_menu(self, menuBar, mainwindow,config_yaml):      
-        settingsMenu = menuBar.addMenu('&settings')
+        settingsMenu = menuBar.addMenu('&Settings')
         #self.MainWindow.update_device_box()    
         #self.__device = device#self.MainWindow.get_deviceName()
         conf = AnalysisUtils().open_yaml_file(file= config_yaml , directory=lib_dir)
@@ -101,8 +101,8 @@ class MenuWindow(QWidget):
         BrowseClient.setStatusTip("Configure OPCUA node browser [IP address, server nodes, etc..")
         BrowseClient.triggered.connect(_show_browse_client_child_window)
         
-        settingsMenu.addAction(BrowseServer)
-        settingsMenu.addAction(BrowseClient)
+        #settingsMenu.addAction(BrowseServer)
+        #settingsMenu.addAction(BrowseClient)
                 
     def set_device_settings_menu(self, menuBar, mainwindow,device_config):      
         settingsMenu = menuBar.addMenu('&settings')

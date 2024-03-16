@@ -10,6 +10,7 @@ import coloredlogs as cl
 import socket
 import ipaddress
 
+
 class AnalysisUtils(object):
     
     def __init__(self):
@@ -69,19 +70,24 @@ class AnalysisUtils(object):
         subindex_items = index_item[0][subindex]
         return subindex_items.keys()
     
-    def open_csv_file(self,outname=None, directory=None, fieldnames = ['A', 'B']):
+    def open_csv_file(self,outputname=None, directory=None, fieldnames = ['A', 'B']):
         if not os.path.exists(directory):
             os.mkdir(directory)
-        filename = os.path.join(directory, outname) 
+        filename = os.path.join(directory, outputname) 
+        
         out_file_csv = open(filename + '.csv', 'w+')
         return out_file_csv
- 
+
     def build_data_base(self,fieldnames=["A","B"],outputname = False, directory = False):
-        out_file_csv = self.open_csv_file(outname=outputname, directory=directory)
+        out_file_csv =self.open_csv_file(outputname=outputname, directory=directory)
+        
         writer = csv.DictWriter(out_file_csv, fieldnames=fieldnames)
+
         writer.writeheader()    
-        csv_writer = csv.writer(out_file_csv)  # , delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)          
-        return csv_writer
+        
+        csv_writer = csv.writer(out_file_csv)  # , delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)     
+           
+        return csv_writer, out_file_csv 
   
     
     def get_ip_device_address(self):

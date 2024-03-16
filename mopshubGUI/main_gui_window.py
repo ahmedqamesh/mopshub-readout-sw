@@ -541,43 +541,6 @@ class MainWindow(QMainWindow):
         self.configureDeviceBoxLayout.addWidget(self.deviceButton)
         self.configureDeviceBoxGroupBox.setLayout(self.configureDeviceBoxLayout)
 
-
-    # def update_device_box(self):
-    #     '''
-    #     The function Will update the configured device section with the registered devices according to the file main_cfg.yml
-    #     '''
-    #     if self.__devices[0] == "None":
-    #         conf = self.child.open()
-    #     else:
-    #         conf = AnalysisUtils().open_yaml_file(file=config_dir + self.__devices[0] + "_cfg.yml", directory=lib_dir)
-    #     mops_child = mops_child_window.MopsChildWindow()
-    #     deviceName, version, icon_dir, nodeIds, dictionary_items, adc_channels_reg,\
-    #      self.__adc_index, self.__chipId, self.__index_items, self.__conf_index, \
-    #      self.__mon_index,self.__resistor_ratio, self.__refresh_rate, self.__ref_voltage  = mops_child.configure_devices(conf)
-    #
-
-        # Load ADC calibration constants
-        # adc_calibration = pd.read_csv(config_dir + "adc_calibration.csv", delimiter=",", header=0)
-        # condition = (adc_calibration["chip"] == chipId)
-        # chip_parameters = adc_calibration[condition]
-        # print(chip_parameters["calib_a"],chip_parameters["calib_b"] )
-        # self.__devices.append(deviceName)
-        #self.set_deviceName(deviceName)
-        # self.set_version(version)
-        # self.set_icon_dir(icon_dir)
-        # self.set_nodeList(nodeIds)
-        # self.set_dictionary_items(dictionary_items) 
-        # self.set_adc_channels_reg(adc_channels_reg)            
-        # try:
-        #     self.deviceButton.deleteLater()
-        #     self.configureDeviceBoxLayout.removeWidget(self.deviceButton)
-        #     self.deviceButton = QPushButton("")
-        #     self.deviceButton.setIcon(QIcon(self.get_icon_dir()))
-        #     self.deviceButton.clicked.connect(self.show_deviceWindow)
-        #     self.configureDeviceBoxLayout.addWidget(self.deviceButton)
-        # except:
-        #     pass
-         
     def load_settings_file(self, interface = None, channel = None):
         filename = os.path.join(lib_dir, config_dir + interface + "_CANSettings.yml")
         test_date = time.ctime(os.path.getmtime(filename))

@@ -27,9 +27,15 @@ lib_dir = rootdir[:-8]
 config_dir = "config_files/"
 mopsub_sm_yaml =config_dir + "mopshub_sm_config.yml" 
 mopsub_conf_yaml =config_dir + "mopshub_config.yaml" 
+
+log_format = '%(log_color)s[%(levelname)s]  - %(name)s -%(message)s'
+log_call = Logger(log_format = log_format,name = "Design Info GUI",console_loglevel=logging.INFO, logger_file = False)
+
+
+
 class DesignInfoGui:
     def __init__(self, state_machines,transitions_list):
-        self.logger = Logger().setup_main_logger(name = "Design Info GUI",console_loglevel=logging.INFO)
+        self.logger = log_call.setup_main_logger()
         self.state_machines = state_machines
         self.transitions_list = transitions_list
         self.app = dash.Dash(__name__)

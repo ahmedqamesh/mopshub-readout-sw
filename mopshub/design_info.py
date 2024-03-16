@@ -14,14 +14,22 @@ rootdir = os.path.dirname(os.path.abspath(__file__))
 lib_dir = rootdir[:-8]
 config_dir = "config_files/"
 mopsub_sm_yaml =config_dir + "mopshub_sm_config.yml" 
-class DesignInfo(object):
 
+try:
+    from logger_main   import Logger
+except (ImportError, ModuleNotFoundError):
+    from .logger_main   import Logger  
+import logging
+log_format = '%(log_color)s[%(levelname)s]  - %(name)s -%(message)s'
+log_call = Logger(log_format = log_format,name = "Design Info ",console_loglevel=logging.INFO, logger_file = False)
+
+class DesignInfo(object):
     def __init__(self,
                  file_loglevel=logging.INFO):
        
         super(DesignInfo, self).__init__()  # super keyword to call its methods from a subclass: 
         self._design_sm_info = AnalysisUtils().open_yaml_file(file= mopsub_sm_yaml, directory=lib_dir)
-        self.logger = Logger().setup_main_logger(name = "Design Info ",console_loglevel=logging.INFO)
+        self.logger = log_call.setup_main_logger()
     
     def get_sm_info(self, sm_id = 0,return_state = None):
         _state_machines_dict = self._design_sm_info["state_machines"]
@@ -31,20 +39,25 @@ class DesignInfo(object):
         _description_items = AnalysisUtils().get_info_yaml(dictionary=_state_machines_dict["sm_items"] , index=_sm_items[sm_id], subindex="description_items")
         _sm_subindex_items = list(AnalysisUtils().get_subindex_yaml(dictionary=_state_machines_dict["sm_items"], index=_sm_items[sm_id], subindex="sm_subindex_items"))
         _sm_return_state =AnalysisUtils().get_info_yaml(dictionary=_state_machines_dict["sm_items"], index=_sm_items[sm_id], subindex="sm_subindex_items")
+        #print(_sm_return_state[return_state.hex()])
         try: 
-            if sm_id !=7:_return_state = str(int(return_state.hex()))
-            else: 
-                try:
-                    _return_state = str(return_state.hex())
+            if sm_id !=7:_return_state = str(int(return_state.hex(),16))
+            else:               
+                try:_return_state = str(return_state.hex())
                 except:
-                    print("Detect invalid pattern [%s]"%str(return_state))
                     _return_state = "INVALID"
-            print("%s[%s] Reads: %s[%s]"%(_description_items,_sm_items[sm_id],_sm_return_state[_return_state],_return_state))
+                    self.logger.warning(f'Detect invalid pattern {_return_state}')
+            _return_state_int = str(int(return_state.hex(),16))
+            self.logger.info(f'({_sm_items[sm_id]}) {_description_items}: {_sm_return_state[_return_state]} [{return_state.hex().upper()}]')
         except:
-            print("%s[%s] Reads: %s[%s]"%(_description_items,_sm_items[sm_id],"INVALID",return_state))
+            _return_state_int = str(int(return_state.hex(),16))
+            self.logger.warning(f'({_sm_items[sm_id]}) {_description_items}: {_return_state}[{return_state.hex().upper()}]')
         
     def extract_transitions(self,verilog_file = None):
+        file_name = os.path.basename(verilog_file)
+        self.logger.report(f'Extracting Transitions between states in {file_name[:-2]}')
         with open(verilog_file, 'r') as file:
+            
             #verilog_code = file.read()
             lines = file.readlines()
             # Process each line and extract the parameter values
@@ -103,7 +116,9 @@ class DesignInfo(object):
             #    print(key, ':', value)            
            # print(result_dict)    
         return result_dict, transitions_list
-        
+
+
+            
     def extract_states(self,verilog_file = None):
         with open(verilog_file, 'r') as file:
             #verilog_code = file.read()
@@ -123,7 +138,7 @@ class DesignInfo(object):
                         key, value = line.split('=')  # Split the line at "="
                         key = key.strip()  # Remove leading/trailing whitespaces from the key
                         value = value.strip()  # Remove leading/trailing whitespaces from the value
-                        for i in np.arange(4,9): value = value.replace(str(i)+"'d", "")
+                        for i in np.arange(4,10): value = value.replace(str(i)+"'d", "")#depends on the size of the statedeb
                         result_dict[value] = key
                         break      
                     else:
@@ -132,7 +147,7 @@ class DesignInfo(object):
                         key = key.strip()  # Remove leading/trailing whitespaces from the key
                         value = value.strip()  # Remove leading/trailing whitespaces from the value
                         #value = value.replace("8'd", "")
-                        for i in np.arange(4,9): value = value.replace(str(i)+"'d", "")
+                        for i in np.arange(4,10): value = value.replace(str(i)+"'d", "")#depends on the size of the statedeb
                         result_dict[value] = key
 
             # Print the dictionary
@@ -143,25 +158,29 @@ class DesignInfo(object):
     def update_design_info(self,file_path = None, verilog_files = None):
         # Open the file and read its contents
         for file_name in verilog_files:
-            result_dict = self.extract_states(verilog_file = file_path+file_name+".v")
+            states_dict = self.extract_states(verilog_file = file_path+file_name+".v") 
             #check the File match
             _state_machines_dict = self._design_sm_info["state_machines"]
             _sm_items =  list(_state_machines_dict["sm_items"])
             for sm_id in  _sm_items:
                 _file_name =  AnalysisUtils().get_info_yaml(dictionary=_state_machines_dict["sm_items"] , index=_sm_items[int(sm_id)], subindex="file_name")
                 if file_name == _file_name:
+                    self.logger.info("Updating %s State Machine"%(_file_name))
                     for sm_key, sm_value in _state_machines_dict["sm_items"][sm_id].items():
                         if sm_key == "sm_subindex_items":
-                            self._design_sm_info["state_machines"]["sm_items"][sm_id]["sm_subindex_items"] = result_dict 
+                            
+                            self._design_sm_info["state_machines"]["sm_items"][sm_id]["sm_subindex_items"] = states_dict 
                             #print(_state_machines_dict["sm_items"][sm_id]["sm_subindex_items"])
                             AnalysisUtils().dump_yaml_file(file=mopsub_sm_yaml,
                                                            loaded = self._design_sm_info,
                                                            directory=lib_dir)
-                            self.logger.info("Saving %s Info to the file %s"%(_file_name, mopsub_sm_yaml))
                 else: 
                     pass
+        self.logger.success("Saving State Machine Info to the file %s"%(mopsub_sm_yaml))
         
     def parse_verilog(self, verilog_file,states_dict):
+        file_name = os.path.basename(verilog_file)
+        self.logger.report(f'Parsing Transitions and States in {file_name[:-2]}')
         state_regex = r'state\s*(\w+)\s*;\s*'
         transition_regex = r'\s*([a-zA-Z_]\w*)\s*<=\s*(\w+)\s*;\s*'
         #case_regex = r'case\s*\(current_state\)\s*((?:\s*\w+\s*:\s*begin\s*\n\s*next_state\s*=\s*\w+;\s*\n\s*end\s*\n)+)\s*endcase'
@@ -179,11 +198,11 @@ class DesignInfo(object):
                     transitions.append((src_state, dst_state))
             
             case_match = re.search(case_regex, content)
-            print(case_match)
+            #print(case_match)
             if case_match:
                 case_content = case_match.group(1)
                 case_transitions = re.findall(transition_regex, case_content)
-                print("case_transitions",case_transitions)
+                #print("case_transitions",case_transitions)
                 for src, dst in case_transitions:
                     
                     src_state = states_dict.get(src)
@@ -194,6 +213,7 @@ class DesignInfo(object):
         return states, transitions
 
     def generate_fsm_graph(self, states, transitions, output_file):
+        file_name = os.path.basename(output_file)
         G = nx.DiGraph()
         # Add states to the graph
         for state in states:
@@ -201,9 +221,12 @@ class DesignInfo(object):
         # Add transitions to the graph
         for src, dst in transitions:
             G.add_edge(src, dst)
-
+        
         ## Generate the graph visualization
-        pos = nx.spring_layout(G, seed=42, k=3, iterations=500)
+        #k (optimal distance between nodes)
+        # iterations (number of iterations for the spring layout algorithm) parameters.
+        pos = nx.spring_layout(G, seed=30, k=2, iterations=500)
+        #pos = nx.random_layout(G)
         # Manually set the position of the 'waittoact' state to the center
         pos['ST_waittoact'] = [0, 0]
         pos['ST_endwait'] = [-0.3, 0.2]
@@ -220,7 +243,7 @@ class DesignInfo(object):
                 
         # Generate the transition labels
         transition_labels = {(src, dst): f"{src} -> {dst}" for src, dst in transitions}
-
+        
         plt.figure(figsize=(12, 8))
         nx.draw_networkx_nodes(G, pos, node_size=700, node_color=node_colors, edgecolors='black')
         nx.draw_networkx_labels(G, pos, font_size=8)
@@ -258,14 +281,16 @@ class DesignInfo(object):
     
         # Register the click event handler
         fig = plt.gcf()
-        fig.canvas.mpl_connect('button_press_event', lambda event: onclick(event, state_labels))
+        #fig.canvas.mpl_connect('button_press_event', lambda event: onclick(event, state_labels))
 
         plt.axis('off')
         #plt.show()
         # Save the graph to an image file
         plt.savefig(output_file, format='png', bbox_inches='tight')
-        plt.show()
-        plt.close()
+        self.logger.success(f'Saving {file_name} State Machine plot at {output_file}')
+        #plt.show()
+        plt.clf() 
+        plt.close(fig)
   
   
   

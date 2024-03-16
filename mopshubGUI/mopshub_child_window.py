@@ -31,7 +31,6 @@ config_dir = "config_files/"
 config_yaml = config_dir + "gui_mainSettings.yml"
 icon_location = "mopshubGUI/icons/"
 class mopshubWindow(QWidget): 
-
     def __init__(self, console_loglevel=logging.INFO):
        super(mopshubWindow, self).__init__(None)
        self.logger = Logger().setup_main_logger(name="MOPS-HUB GUI", console_loglevel=console_loglevel)
@@ -41,8 +40,8 @@ class mopshubWindow(QWidget):
        self.__appVersion = self.__conf['Application']['app_version']
        self.__appIconDir = self.__conf["Application"]["app_icon_dir"]
        self.__devices = self.__conf["Application"]["Devices"]
-       self.multi_mode = self.__conf["Application"]["multi_mode"]
-       self.mopshub_mode = self.__conf["Application"]["mopshub_mode"]
+       self.__multi_mode = self.__conf["Application"]["multi_mode"]
+       self.__mopshub_mode = self.__conf["Application"]["mopshub_mode"]
        self.trim_mode = self.__conf["Application"]["trim_mode"] 
         
        self.MOPSChildWindow = mops_child_window.MopsChildWindow(self, opcua_config="opcua_config.yaml")
@@ -103,7 +102,7 @@ class mopshubWindow(QWidget):
             eventTimer = mops_child_window.EventTimer()
             self.adc_timer[int(cic)][int(port)][int(mops)] = eventTimer.initiate_timer()
             self.adc_timer[int(cic)][int(port)][int(mops)].setInterval(period) #receives the time in milliseconds
-            self.adc_timer[int(cic)][int(port)][int(mops)].timeout.connect(lambda: self.update_adc_channels(int(cic),int(port),int(mops)))
+            self.adc_timer[int(cic)][int(port)][int(mops)].timeout.connect(lambda: self.update_mopshub_adc_channels(int(cic),int(port),int(mops)))
         else:
             self.error_message("Please add an output file name")        
 
@@ -548,7 +547,7 @@ class mopshubWindow(QWidget):
         cic_name  = list(self.conf_cic["MOPSHUB"].keys())[cic_id]
         return cic_name
     
-    def set_bus_enable(self, c, b):
+    def set_bus_enable(self, c, b,voltage_control = [0x01,0x03,0x0F,0x33,0x3F,0xC3,0xCF,0xF3,0xFF]):
         sender = self.sender().objectName()
         _cic_id , _true_port_id =    re.findall(r'\d+',sender)
         cic_element = self.get_element_cic("CIC "+str(int(_cic_id)))
@@ -556,7 +555,7 @@ class mopshubWindow(QWidget):
         
         reg6_hex_on = Analysis().binToHexa(bin(0x31)[2:].zfill(8)+
                                 bin(int(_true_port_id))[2:].zfill(8)+
-                                bin(0)[2:].zfill(8)+
+                                bin(voltage_control[1])[2:].zfill(8)+
                                 bin(0)[2:].zfill(8))
         reg6_hex_off = Analysis().binToHexa(bin(0x30)[2:].zfill(8)+
                                 bin(int(_true_port_id))[2:].zfill(8)+
@@ -662,7 +661,7 @@ class mopshubWindow(QWidget):
             msg = "CIC " + _cic_id, "MOPS " + _mops_num, "Port " + _port_id, ": Not Found"
             self.set_textBox_message(comunication_object="ErrorFrame" , msg=str(msg)) 
 
-    def update_adc_channels(self,c,b,m):
+    def update_mopshub_adc_channels(self,c,b,m):
         gc.collect() 
         _dictionary = self.__dictionary_items
         _adc_indices = list(self.__adc_index)
@@ -721,10 +720,10 @@ class mopshubWindow(QWidget):
                                      str(respmsg),
                                      str(responsereg), 
                                      status))                                    
-            self.update_configuration_values(c,b,m)
-            self.update_monitoring_values(c,b,m)
+            self.update_mopshub_configuration_values(c,b,m)
+            self.update_mopshub_monitoring_values(c,b,m)
             
-    def update_configuration_values(self,c,b,m):
+    def update_mopshub_configuration_values(self,c,b,m):
         '''
         The function will will send a CAN message to read configuration values using the function read_sdo_can and 
          update the confValueBox in configuration_values_window.
@@ -744,7 +743,7 @@ class mopshubWindow(QWidget):
                 a = a + 1    
                 #time.sleep(self.__timeout)
 
-    def update_monitoring_values(self,c,b,m):
+    def update_mopshub_monitoring_values(self,c,b,m):
         '''
         The function will will send a CAN message to read monitoring values using the function read_sdo_can and
          update the monValueBox in monitoring_values_window.
