@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 rootdir = os.path.dirname(os.path.abspath(__file__)) 
 sys.path.insert(0, rootdir+'/mopshub')
+
 from logger_main   import Logger
 import logging
 import pandas as pd
