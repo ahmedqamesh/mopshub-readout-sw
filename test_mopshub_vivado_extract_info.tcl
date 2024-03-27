@@ -165,12 +165,12 @@ if {![file exists $full_xadc_out_file]} {
     puts $fileId " "
     close $fileId
 }
-#read_xadc 5
+read_xadc 5
 #=======================Read ILA data=======================================================================
 # Call the procedure to configure the ILA core
 #get ila data name 
 read_hw_ila_data $ila_data
-#read_ila 5
+read_ila 5
 
 # Write ila data into a file 
 set ila_out_data [upload_hw_ila_data hw_ila_1]

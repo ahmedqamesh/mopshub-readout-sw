@@ -9,20 +9,32 @@ import binascii
 import struct
 import serial
 import time
+import logging
+from datetime import datetime
 rootdir = os.path.dirname(os.path.abspath(__file__)) 
 sys.path.insert(0, rootdir+'/mopshub')
 from analysis_utils      import AnalysisUtils
 from analysis            import Analysis
 from design_info         import DesignInfo
 from uhal_wrapper_main   import UHALWrapper
+from logger_main   import Logger
 from mopshubSimulation   import sim_mopshub_main, sim_mops_main   
-timeout = 0.1
+
 sm_info = DesignInfo()
-    
+time_now = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
+log_format = '%(log_color)s[%(levelname)s]  - %(name)s -%(message)s'
+
+log_call = Logger(log_format=log_format, name="SIM Data", console_loglevel=logging.INFO, logger_file=False)
+logger = log_call.setup_main_logger()
+
+output_dir = rootdir+"/output_dir/"+time_now      
+config_dir = rootdir+"/config_files/" 
+timeout = 0.05
+
 def power_control(bus = None, voltage_control = [0x01,0x03,0x0F,0x33,0x3F,0xC3,0xCF,0xF3,0xFF]):
     #power On/off the bus
     for spi_select in bus:
-        print(f'=========================Powering OFF[{spi_select:03X}]================================')
+        logger.info(f'Powering OFF[{spi_select:03X}]...')
         cobid = 0x31 -1
         power_reg6_hex = Analysis().binToHexa(bin(cobid)[2:].zfill(8)+
                                               bin(spi_select)[2:].zfill(8)+
@@ -30,10 +42,10 @@ def power_control(bus = None, voltage_control = [0x01,0x03,0x0F,0x33,0x3F,0xC3,0
                                               bin(0)[2:].zfill(8)) 
         sim_wrapper.write_sim_mopshub_message(hw =hw, data=[power_reg6_hex,power_reg6_hex,power_reg6_hex,0xa], reg = ["reg6","reg7","reg8","reg9"], timeout=timeout)
         time.sleep(0.1)
-        print(f'=========================Powering ON[{spi_select:03X}]================================')
+        logger.info(f'Powering ON[{spi_select:03X}]...')
         cobid = 0x31  
         for voltage in voltage_control:
-            print(f'Enable voltage:[{voltage:03X}]')
+            logger.info(f'Enable voltage:[{voltage:03X}]...')
             power_reg6_hex = Analysis().binToHexa(bin(cobid)[2:].zfill(8)+
                                                   bin(spi_select)[2:].zfill(8)+
                                                   bin(voltage)[2:].zfill(8)+
@@ -41,23 +53,24 @@ def power_control(bus = None, voltage_control = [0x01,0x03,0x0F,0x33,0x3F,0xC3,0
             sim_wrapper.write_sim_mopshub_message(hw =hw, data=[power_reg6_hex,power_reg6_hex,power_reg6_hex,0xa], reg = ["reg6","reg7","reg8","reg9"], timeout=timeout)  
 
 def read_adc_iterations(n_readings = 1, bus_range = [1],NodeIds = None): 
-    print ("=========================READ ADC================================")
+    logger.info('Read ADC data...')
     #  #Example (3): Read all the ADC channels and Save it to a file in the directory output_dir    
-    csv_writer = sim_wrapper.create_mopshub_adc_data_file(outputname = "mopshub_top_16bus", # Data file name
-                                        outputdir = rootdir + "/output_dir") # # Data directory)
-    #while True:
-    #
+    outputname = time_now + "mopshub_sim_16bus"
+    csv_writer,csv_file = sim_wrapper.create_mopshub_adc_data_file(outputname = outputname, # Data file name
+                                        outputdir = output_dir+"_sim") # # Data directory)
+
     sim_wrapper.read_mopshub_adc_channels(hw =hw,
                                     bus_range = bus_range,#range(1,2), 
                                     file ="mops_config.yml", #Yaml configurations
-                                    directory=rootdir+"/config_files", # direstory of the yaml file
+                                    directory=config_dir, # direstory of the yaml file
                                     nodeId = NodeIds, # Node Id
                                     n_readings = n_readings,
                                     csv_writer =csv_writer,
-                                    outputname = "mopshub_sim_16bus", # Data file name
-                                    outputdir = rootdir + "/output_dir",
-                                    timeout = timeout) # Number of Iterations          
-
+                                    csv_file = csv_file,
+                                    outputname = outputname, # Data file name
+                                    outputdir =  output_dir+"_sim",
+                                    timeout = timeout) # Number of Iterations        
+    
 def conf_mon_values(bus=None):
     spi_select = Analysis().binToHexa(bin(bus)[2:].zfill(8))
     print ("=========================READ Mon 0x88================================")
@@ -125,15 +138,6 @@ def read_mon_values(bus=None):
          #time.sleep(1)
     print(adc_result)
 
-def flush_mopshub_fifo():
-    #Flush The FIFO
-    print ("======================Flush The FIFO================================")
-    sim_wrapper.write_uhal_message(hw = hw, 
-                                      node =sim_wrapper.get_ual_node(hw =hw, registerName = "reg11"), 
-                                      registerName="reg11", 
-                                      data = 0x1, 
-                                      timeout=timeout)  
-
 def test_sim_wrapper(bus = None,nodeId = None):
     # One CAN message requires bus, nodeId, index , subindex, 
     index=0x2400
@@ -161,7 +165,6 @@ if __name__ == '__main__':
     #test_sim_wrapper(bus = bus,nodeId = NodeIds[0])
     #power On/off the bus
     #power_control(bus = [bus],voltage_control = [voltage_control[2]])
-    #flush_mopshub_fifo()
     read_adc_iterations(n_readings = 2,bus_range = [bus],NodeIds = NodeIds)
     #read_mon_values(bus = 1)
     #conf_mon_values(bus = 1)

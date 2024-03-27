@@ -10,7 +10,7 @@ import struct
 import time
 import serial
 from datetime import datetime
-
+import logging
 rootdir = os.path.dirname(os.path.abspath(__file__)) 
 sys.path.insert(0, rootdir+'/mopshub')
 
@@ -18,16 +18,22 @@ from analysis_utils      import AnalysisUtils
 from analysis            import Analysis
 from design_info         import DesignInfo
 from serial_wrapper_main import SerialServer
+from logger_main   import Logger
 from uhal_wrapper_main import UHALWrapper
 timeout = 0.05
 sm_info = DesignInfo()
 time_now = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
+log_format = '%(log_color)s[%(levelname)s]  - %(name)s -%(message)s'
+log_call = Logger(log_format=log_format, name="UHAL Data", console_loglevel=logging.INFO, logger_file=False)
+logger = log_call.setup_main_logger()
+
 output_dir = rootdir+"/output_dir/"+time_now
 config_dir = rootdir+"/config_files/"
 def power_control(bus = None, voltage_control = [0x01,0x03,0x0F,0x33,0x3F,0xC3,0xCF,0xF3,0xFF]):
     #power On/off the bus
     for spi_select in bus:
-        #print(f'=========================Powering OFF[{spi_select:03X}]================================')
+        
+        logger.info(f'Powering OFF[{spi_select:03X}]...')
         cobid = 0x31 -1
         power_reg6_hex = Analysis().binToHexa(bin(cobid)[2:].zfill(8)+
                                               bin(spi_select)[2:].zfill(8)+
@@ -35,7 +41,8 @@ def power_control(bus = None, voltage_control = [0x01,0x03,0x0F,0x33,0x3F,0xC3,0
                                               bin(0)[2:].zfill(8)) 
         wrapper.write_uhal_mopshub_message(hw =hw, data=[power_reg6_hex,power_reg6_hex,power_reg6_hex,0xa], reg = ["reg6","reg7","reg8","reg9"], timeout=timeout)
         time.sleep(10)
-        print(f'=========================Powering ON[{spi_select:03X}]================================')
+        
+        logger.info(f'Powering ON[{spi_select:03X}]...')
         cobid = 0x31  
         for voltage in voltage_control:
             print(f'Enable voltage:[{voltage:03X}]')
@@ -47,7 +54,7 @@ def power_control(bus = None, voltage_control = [0x01,0x03,0x0F,0x33,0x3F,0xC3,0
         time.sleep(15)
 
 def read_adc_iterations(n_readings = 1, bus_range = [1],NodeIds = None,seu_test =True): 
-    print ("=========================READ ADC================================")
+    logger.info('READ ADC...')
     #  #Example (3): Read all the ADC channels and Save it to a file in the directory output_dir
     if seu_test: outputname = time_now + "_mopshub_top_16bus_seu_test"
     else: outputname = time_now + "_mopshub_top_16bus"
@@ -138,7 +145,7 @@ def read_mon_values(bus=None):
 
 def flush_mopshub_fifo():
     #Flush The FIFO
-    print ("======================Flush The FIFO================================")
+    logger.info('Flush The FIFO...')
     wrapper.write_uhal_message(hw = hw, 
                                       node =wrapper.get_ual_node(hw =hw, registerName = "reg11"), 
                                       registerName="reg11", 
@@ -151,8 +158,7 @@ def test_uhal_wrapper(bus = None,nodeId = None):
     #await wrapper.write_uhal_message(hw = hw, node =nodecsr, data=5, registerName="regcsr", timeout=timeout)
     #await wrapper.read_uhal_message(node =nodecsr, registerName="regcsr", timeout=timeout)
     #print ("=========================Read Reg================================")
-
-    print ("=========================read SDO================================")
+    logger.info('Read SDO...')
     # data_point, reqmsg, requestreg, respmsg,responsereg , status =  wrapper.read_sdo_uhal(hw =hw,
     #                                                                                       SDO_TX = 0x600,
     #                                                                                       nodeId=nodeId, 
@@ -165,17 +171,17 @@ def test_uhal_wrapper(bus = None,nodeId = None):
 
     #Example (1): Read some Reg 
     #wait for interrupt
-    print ("=========================READ Reg [reg0,reg1,reg2]================")
+    logger.info('Read Reg [reg0,reg1,reg2]...')
     #cobid, _, respmsg, responsereg, t = wrapper.read_uhal_mopshub_message(reg = ["reg0","reg1","reg2"], timeout=timeout)
     #check the situation
     #wrapper.read_uhal_message(hw = hw, node =wrapper.get_ual_node(hw =hw, registerName = "reg3"), registerName="reg3", timeout=0.1)
-    print ("=========================READ Reg [reg3,reg4,reg5]================")
+    logger.info('Read Reg [reg3,reg4,reg5]...')
    # wrapper.read_uhal_mopshub_message(reg = ["reg3","reg4","reg5"], timeout=timeout)  
-    print ("=========================READ Reg [reg6,reg7,reg8]================")
+    logger.info('Read Reg [reg6,reg7,reg8]...')
     #wrapper.read_uhal_mopshub_message(reg = ["reg6","reg7","reg8"], timeout=timeout) 
  
-    #Example (2): write/read SDO message   
-    print ("=========================write SDO message================")
+    #Example (2): write/read SDO message 
+    logger.info('Write SDO...')  
     subindex=0xA
     data_point, reqmsg, requestreg, respmsg,responsereg , status =  wrapper.read_sdo_uhal(hw =hw,
                                                                                             nodeId=nodeId, 
@@ -189,8 +195,6 @@ def test_uhal_wrapper(bus = None,nodeId = None):
     # #  # PS. To visualise the data, Users can use the file $HOME/test_files/plot_adc.py
 if __name__ == '__main__':
     # PART 1: Argument parsing
-    uri = "ipbusudp-2.0://192.168.200.16:50001"
-    addressFilePath = config_dir+"ipbus_example.xml"
     wrapper = UHALWrapper(load_config = True)
     #server  = SerialServer(port="/dev/ttyUSB0", baudrate=115200)
     # PART 2: Creating the HwInterface

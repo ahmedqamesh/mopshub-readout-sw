@@ -46,6 +46,7 @@ from typing import List, Any
 from random import randint
 import uhal
 import random
+uhal.setLogLevelTo(uhal.LogLevel.WARNING )
 #from csv import writer
 log_format = '%(log_color)s[%(levelname)s]  - %(name)s -%(message)s'
 log_call = Logger(log_format = log_format,name = "UHAL Wrapper",console_loglevel=logging.INFO, logger_file = False)

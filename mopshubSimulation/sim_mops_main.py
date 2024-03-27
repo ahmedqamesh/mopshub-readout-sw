@@ -24,11 +24,15 @@ from threading import Thread, Event, Lock
 import subprocess
 import threading
 import numpy as np
+rootdir = os.path.dirname(os.path.abspath(__file__)) 
+sys.path.insert(0, rootdir+'/mopshub')
 from mopshub.analysis       import Analysis
 from mopshub.logger_main    import Logger 
 from mopshub.analysis_utils import AnalysisUtils
 import struct
 # Third party modules
+
+
 from collections import deque, Counter
 from tqdm import tqdm
 import ctypes as ct
@@ -41,9 +45,10 @@ import uhal
 
 import random
 #from csv import writer
-logger = Logger().setup_main_logger(name = " Lib Check ",console_loglevel=logging.INFO, logger_file = False)
+log_format = '%(log_color)s[%(levelname)s]  - %(name)s -%(message)s'
+log_call = Logger(log_format=log_format, name="Lib Check ", console_loglevel=logging.INFO, logger_file=False)
 
-rootdir = os.path.dirname(os.path.abspath(__file__))
+
 config_dir = "config_files/"
 lib_dir = rootdir[:-8]
 
@@ -67,8 +72,8 @@ class SIMMOPS(object):#READSocketcan):#Instead of object
         if logdir is None:
             #'Directory where log files should be stored'
             logdir = os.path.join(lib_dir, 'log')                 
-        self.logger = Logger().setup_main_logger(name = "UHAL Wrapper",console_loglevel=console_loglevel, logger_file = False)
         
+        self.logger = log_call.setup_main_logger()
         if load_config:
            # Read CAN settings from a file 
             self.__uri, self.__addressFilePath =   self.load_settings_file()          
@@ -240,7 +245,7 @@ class SIMMOPS(object):#READSocketcan):#Instead of object
                                                     registerName="reg3", timeout=timeout, out_msg = None)
             count= count+1
             if out_msg: self.logger.info(f'Read irq_tra_sig =  {irq_tra_sig} Count ({count})')
-            time.sleep(timeout)
+            time.sleep(0.001)
             if irq_tra_sig >=0x1:break
         #Read data  from FIFO        
         if irq_tra_sig>0x0:
@@ -342,7 +347,7 @@ class SIMMOPS(object):#READSocketcan):#Instead of object
                                                               spi_select=bus_id,
                                                               timeout=timeout, 
                                                               out_msg =False)
-            time.sleep(0.7)                     
+            time.sleep(0.02)                     
             last_bits = bin(adc_out[4])[6:][:2]
             adc_info.append(adc_out)
             if adc_out[4] == 255:
@@ -859,7 +864,7 @@ class ConsumerThread(Thread):
             num = queue.pop(0)
             print ("Consumed", num) 
             lock.release()
-            time.sleep(random.random())  
+            #time.sleep(random.random())  
                
 if __name__ == "__main__":
     main()      

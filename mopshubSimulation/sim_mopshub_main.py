@@ -15,13 +15,14 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from configparser import ConfigParser
 from typing import *
 import time
-import datetime
+from datetime import datetime
 #import asyncio
 #from asyncio.tasks import sleep
 import sys
 import os
 
 import subprocess
+
 
 import numpy as np
 from mopshub.analysis       import Analysis
@@ -39,6 +40,8 @@ from bs4 import BeautifulSoup #virtual env
 from typing import List, Any
 from random import randint,randrange
 import random
+log_format = '%(log_color)s[%(levelname)s]  - %(name)s -%(message)s'
+log_call = Logger(log_format = log_format,name = "SIM Wrapper",console_loglevel=logging.INFO, logger_file = False)
 rootdir = os.path.dirname(os.path.abspath(__file__))
 config_dir = "config_files/"
 lib_dir = rootdir[:-18]
@@ -59,8 +62,7 @@ class SIMMOPSHUB(object):#READSocketcan):#Instead of object
         if logdir is None:
             #'Directory where log files should be stored'
             logdir = os.path.join(lib_dir, 'log')                 
-        self.logger = Logger().setup_main_logger(name = "SIM Wrapper",console_loglevel=console_loglevel, logger_file = False)
-        
+        self.logger = log_call.setup_main_logger()
         if load_config:
            # Read CAN settings from a file 
             self.__uri, self.__addressFilePath =   self.load_settings_file()          
@@ -551,7 +553,8 @@ class SIMMOPSHUB(object):#READSocketcan):#Instead of object
         
         return csv_writer
         
-    def read_mopshub_adc_channels(self, hw, bus_range, file, directory,outputname, outputdir , nodeId, n_readings,timeout,csv_writer):
+    def read_mopshub_adc_channels(self, hw= None, bus_range= None, file= None, directory= None,outputname= None, outputdir= None , nodeId= None, n_readings= None,timeout= None,
+                                  csv_writer= None, csv_file = None):
         """Start actual CANopen communication
         This function contains an endless loop in which it is looped over all
         ADC channels. Each value is read using
@@ -582,6 +585,7 @@ class SIMMOPSHUB(object):#READSocketcan):#Instead of object
                                                                                                            timeout = timeout,
                                                                                                            out_msg = False)                   
                         
+                        file_time_now = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
                         ts = time.time()
                         elapsedtime = ts - monitoringTime
                         if data_point is not None:
@@ -590,7 +594,8 @@ class SIMMOPSHUB(object):#READSocketcan):#Instead of object
                             self.logger.info(f'[{point}] Got Sim data for channel {channel} [{hex(subindex)}]: = {adc_converted}')
                         else:
                             adc_converted = None
-                        csv_writer.writerow((str(elapsedtime),
+                        csv_writer.writerow((str(file_time_now),
+                                             str(elapsedtime),
                                              str(1),
                                              str(bus),
                                              str(node),
@@ -604,7 +609,7 @@ class SIMMOPSHUB(object):#READSocketcan):#Instead of object
                                              str(respmsg),
                                              str(responsereg), 
                                              status))
-        
+                        csv_file.flush() # Flush the buffer to update the file            
         self.logger.info(f'No. of invalid responses = {self.__cnt["messageInvalid_queue"]}|| No. of failed responses = {self.__cnt["messageFailed_response-1"]}')
         #self.logger.notice("ADC data are saved to %s/%s" % (outputdir,outputname))
 

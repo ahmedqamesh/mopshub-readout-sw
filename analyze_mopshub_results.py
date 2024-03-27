@@ -276,19 +276,20 @@ if __name__ == '__main__':
     logger.info("checking test directory"+str(args))
        
     if analyzedefined == True:
-        file_date = "2024-02-01_17:36:35"
+        file_uhal_date = "2024-03-16_16:57:48"
         file_debug_date = "2024-02-05_19:23:59"
         file_vivado_date = "2024-02-01_17:36:35"
         xadc_files = [output_dir+file_vivado_date+"_vivado/"+file_vivado_date+"_hw_xadc_data_file.csv"]
         ila_files = [output_dir+file_vivado_date+"_vivado/"+file_vivado_date+"_hw_ila_data_file.csv"]
         debug_files =[output_dir+file_debug_date+"_debug/"+file_debug_date+"_mopshub_top_16bus_debug.csv"]
-        file_uhal =output_dir+file_date+"_uhal/"+file_date+"_mopshub_top_16bus_seu_test.csv"
+        file_uhal =output_dir+file_uhal_date+"_uhal/"+file_uhal_date+"_mopshub_top_16bus.csv"
+        #file_uhal =output_dir+file_uhal_date+"_uhal/"+file_uhal_date+"_mopshub_top_16bus_seu_test.csv"
         print('------------------------------------------------------------')    
         analyze_debug_results.plot_debug_time(file_names=debug_files,PdfPages=PdfPages,text_enable =True,output_dir = output_dir+file_debug_date+"_debug/")
         print('------------------------------------------------------------')
-        plot_can_compare_bar(file_name=file_uhal,test = "test_tx",output_dir = output_dir+"/"+file_date+"_uhal/")
-        plot_matches_time(file_name=file_uhal,test = "test_tx",output_dir = output_dir+file_date+"_uhal/")
-        #plot_adc(file_name =file_uhal, bus_id= [0], nodeId = [0], xlimit = False,ylimit = False,output_dir = output_dir+file_date+"_uhal/")
+        plot_can_compare_bar(file_name=file_uhal,test = "test_tx",output_dir = output_dir+"/"+file_uhal_date+"_uhal/")
+        plot_matches_time(file_name=file_uhal,test = "test_tx",output_dir = output_dir+file_uhal_date+"_uhal/")
+        #plot_adc(file_name =file_uhal, bus_id= [0], nodeId = [0], xlimit = False,ylimit = False,output_dir = output_dir+file_uhal_date+"_uhal/")
         print('------------------------------------------------------------')
         basic_tests = ["1.4 p V11"]     
         for t in basic_tests:
