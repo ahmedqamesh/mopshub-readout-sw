@@ -20,7 +20,7 @@ The MOPS-Hub Readout Software is a Python-based framework designed to control th
 ### Required Python Packages
 - Python 3.x
 - Additional packages as specified in the requirements_pip.txt file
-- Detailed installation instructions are available on the ![Twiki page](https://github.com/ahmedqamesh/mopshub-sw-kcu102/wiki)
+- Detailed installation instructions are available on the [Twiki page](https://github.com/ahmedqamesh/mopshub-sw-kcu102/wiki)
 
 ### Getting Started
 Clone the repository to download the source code:
