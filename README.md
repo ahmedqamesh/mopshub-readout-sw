@@ -1,40 +1,43 @@
-# mopshub-sw-kcu102
+# MOPS-Hub Readout Software
 
-## Getting started
-## Installation
- Python 3.6.8 is used here (/usr/bin/python3)
- Compiling and installing from source
- 
-Instructions
-------------
+The MOPS-Hub Readout Software is a Python-based framework designed to control the MOPS-Hub readout board, facilitating comprehensive crate testing and data aggregation. This software package offers modular functionalities and a user-friendly interface for configuring and communicating with the hardware platform.
 
-1. **Install the prerequisites**, 
-   * **CentOS7**: System version of BOOST, pugiXML & Erlang
-     
-     .. code-block:: sh
-     
-		sudo yum -y install make rpm-build git-core erlang gcc-c++ boost-devel pugixml-devel python-devel python3-devel
-     
-2. **Checkout from git and compile**
-     .. code-block:: sh
-     
-		git clone --depth=1 -b v2.8.9 --recurse-submodules https://github.com/ipbus/ipbus-software.git
-		cd ipbus-software
-		make PYTHON=/usr/bin/python3.6
-3. **Install the software**
-	If you’re using an RPM-based linux distribution (e.g. red hat / CentOS), then create and install the RPMs, as follows:
-     .. code-block:: sh
-		
-		sudo make cleanrpm
-		make rpm PYTHON=/usr/bin/python3.6
-		sudo yum localinstall `find . -iname "*.rpm"`
+![MOPS-Hub Readout](https://github.com/ahmedqamesh/mopshub-sw-kcu102/assets/8536649/7ec0939e-345b-4ca1-ac25-7f7bf3cf5020)
 
-By default, sudo make install will install uHAL and the ControlHub within /opt/cactus; if you want to install the files in another directory
+## General Features
+- Modular framework structured into distinct, self-contained classes for ease of development and maintenance.
+- Efficient communication with the MOPS-Hub readout board via TCP/IP connection.
+- Configuration management for establishing communication and correct configuration of the hardware.
+- Data transmission and reception methods for constructing and transmitting data frames to the IPbus master and processing received data.
+- Serial communication capabilities for debugging and interaction with embedded systems.
+- Data handling and analysis functionalities, including saving raw data frames to disk in CSV format and offline analysis.
 
-4. **Set the environment:**
-     .. code-block:: sh
-		
-		export LD_LIBRARY_PATH=/opt/cactus/lib:$LD_LIBRARY_PATH
-		export PATH=/opt/cactus/bin:$PATH
-## Usage
+## Installation and Usage
+
+### System Requirements
+- **Operating System:** Windows, Linux
+
+### Required Python Packages
+- Python 3.x
+- Additional packages as specified in the requirements_pip.txt file
+- Detailed installation instructions are available on the ![Twiki page](https://github.com/ahmedqamesh/mopshub-sw-kcu102/wiki)
+
+### Getting Started
+Clone the repository to download the source code:
+
+```
+ git clone git@github.com:ahmedqamesh/mopshub-sw-kcu102.git
+
+```
+Ensure the MOPS-Hub readout board is connected and the required software dependencies are installed. To test the setup, run the following command in the project directory:
+
+```
+python test_mopshub_uhal.py
+
+```
+### Configuration and Usage
+Detailed instructions for configuration and usage are available in the documentation included in the project repository.
+
+## Contributing and Contact Information:
+We welcome contributions from the community please contact : `ahmed.qamesh@cern.ch`.
 
