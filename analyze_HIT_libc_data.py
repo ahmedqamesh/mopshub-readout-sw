@@ -33,6 +33,18 @@ path = os.path.abspath('') + '/'
 logger.info('current working path: '+path)
 
 def calculate_HIT_parameters(segma_litrature =None, pp3_fluence = None,n_bits = None,n_seu = None):#segma_litrature[/cm^2/bit] & pp3_fluence [/cm^2/pp]& n_bits [per device]
+    """
+    Calculate parameters related to Single-Event Upset (SEU) rates and fluence.
+
+    Args:
+        segma_litrature (float): SEU cross-section from literature, given in [/cm^2/bit].
+        pp3_fluence (float): Fluence at PP3, given in [/cm^2/pp].
+        n_bits (int): Number of bits per device.
+        n_seu (int): Number of SEUs.
+
+    Returns:
+        list: SEU time in hours for each intensity value.
+    """
     logger.report(f"Literature value for SEU cross section = {segma_litrature}") 
     pp3_fluence = pp3_fluence* 40e+6
     n_seu_expected = segma_litrature * pp3_fluence *n_bits
