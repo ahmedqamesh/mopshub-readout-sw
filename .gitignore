@@ -5,12 +5,14 @@
 # Mr Developer
 .mr.developer.cfg
 .project
-.pydevproject
+*.pydevproject
 .settings
 *DS_Store
-__pycashe__
+*__pycashe__
 .ropeproject
 *.log
 *.pot
 *.kafe
 *.vscode
+*.Xil
+
