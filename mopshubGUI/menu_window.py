@@ -10,6 +10,9 @@ from mopshub.logger_main import Logger
 from PyQt5.QtWidgets import QMainWindow
 import os
 import numpy as np
+log_format = '%(log_color)s[%(levelname)s]  - %(name)s -%(message)s'
+log_call = Logger(log_format = log_format,name = "Menu GUI",console_loglevel=logging.INFO, logger_file = False)
+
 rootdir = os.path.dirname(os.path.abspath(__file__)) 
 config_dir = "config_files/"
 lib_dir = rootdir[:-11]
@@ -19,8 +22,9 @@ class MenuWindow(QWidget):
     def __init__(self, parent=main_gui_window):
         super(MenuWindow, self).__init__(parent)
         self.MainWindow = main_gui_window.MainWindow()
-        self.logger = Logger().setup_main_logger(name = " Menu  GUI ",console_loglevel=logging.INFO)
-    
+        self.logger = log_call.setup_main_logger()
+        self.adcItems= [str(k) for k in np.arange(3,35)] 
+        
     def stop(self):
         return self.MainWindow.stop_server()
     
@@ -64,7 +68,7 @@ class MenuWindow(QWidget):
         def show_adc_plotting_window():
             self.plotWindow = QMainWindow()
             plottingWindow = child_window.ChildWindow(parent = self.plotWindow)
-            plottingWindow.plot_adc_window(adcItems=[str(k) for k in np.arange(35)],
+            plottingWindow.plot_adc_window(adcItems=self.adcItems,
                                         name_prefix="adc_data_1",
                                         plot_prefix="adc_data")
             plottingWindow.show()
@@ -298,7 +302,7 @@ class MenuWindow(QWidget):
         mainLayout = QGridLayout()
         # Define a frame for that group
         plotframe = QFrame()
-        plotframe.setLineWidth(0.6)
+        plotframe.setLineWidth(1)
         childWindow.setCentralWidget(plotframe)
         #ADC part
         adcLayout= QHBoxLayout()
@@ -435,7 +439,7 @@ class MenuWindow(QWidget):
         mainLayout = QGridLayout()
         # Define a frame for that group
         plotframe = QFrame()
-        plotframe.setLineWidth(0.6)
+        plotframe.setLineWidth(1)
         childWindow.setCentralWidget(plotframe)
         
         nodeLayout= QVBoxLayout()
@@ -550,7 +554,7 @@ class MenuWindow(QWidget):
         mainLayout = QGridLayout()
         # Define a frame for that group
         plotframe = QFrame()
-        plotframe.setLineWidth(0.6)
+        plotframe.setLineWidth(1)
         childWindow.setCentralWidget(plotframe)
         mainLayout = QGridLayout()
         buttonLayout = QHBoxLayout()  

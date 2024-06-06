@@ -24,17 +24,22 @@ from mopshub.analysis       import Analysis
 from mopshub.logger_main         import Logger 
 from mopshub.analysis_utils  import AnalysisUtils
 
+log_format = '%(log_color)s[%(levelname)s]  - %(name)s -%(message)s'
+log_call = Logger(log_format = log_format,name = "Main GUI",console_loglevel=logging.INFO, logger_file = False)
+
+
 rootdir = os.path.dirname(os.path.abspath(__file__)) 
 lib_dir = rootdir[:-11]
 config_dir = "config_files/"
 config_yaml = config_dir + "gui_mainSettings.yml"
 icon_location = "mopshubGUI/icons/"
+
 class MainWindow(QMainWindow):
 
     def __init__(self, console_loglevel=logging.INFO):
         super(MainWindow, self).__init__(None)
         """:obj:`~logging.Logger`: Main logger for this class"""
-        self.logger = Logger().setup_main_logger(name=" Main  GUI ", console_loglevel=console_loglevel)
+        self.logger = log_call.setup_main_logger()
         # Start with default settings
         # Read configurations from a file    
         self.__conf = AnalysisUtils().open_yaml_file(file=config_yaml, directory=lib_dir)
@@ -112,7 +117,7 @@ class MainWindow(QMainWindow):
         
         # Create a frame in the main menu for the gridlayout
         mainFrame = QFrame()
-        mainFrame.setLineWidth(0.6)
+        mainFrame.setLineWidth(1)
         self.setCentralWidget(mainFrame)
             
         # SetLayout
@@ -1291,7 +1296,7 @@ class MainWindow(QMainWindow):
     def show_adc_plotting_window(self):
         self.plotWindow = QMainWindow()
         ChildWindow = child_window.ChildWindow(parent = self.plotWindow)
-        ChildWindow.plot_adc_window(adcItems=[str(k) for k in np.arange(0,35)],
+        ChildWindow.plot_adc_window(adcItems=[str(k) for k in np.arange(3,35)],
                                     name_prefix="adc_data",
                                     plot_prefix="adc_data")
         ChildWindow.show()

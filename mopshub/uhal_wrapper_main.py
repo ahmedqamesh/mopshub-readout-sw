@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-This module provides a class for a CAN wrapper for the ADC channels of the MOPS Chip.
+This module provides a class for a UHAL wrapper for the ADC channels of the MOPS Chip.
 It also provides a function for using this server as a command line tool.
 Note
 ----
@@ -15,7 +15,7 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from configparser import ConfigParser
 from typing import *
 import time
-from datetime import datetime
+import datetime
 import keyboard
 import atexit
 #import asyncio
@@ -55,7 +55,7 @@ rootdir = os.path.dirname(os.path.abspath(__file__))
 config_dir = "config_files/"
 lib_dir = rootdir[:-8]
 
-class UHALWrapper(object):#READSocketcan):#Instead of object
+class UHALWrapper(object):
 
     def __init__(self,
                  file_loglevel=logging.INFO, 
@@ -65,12 +65,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
                  mainWindow= False):
        
         super(UHALWrapper, self).__init__()  # super keyword to call its methods from a subclass:        
-        #Initialize a watchdog (to be done)
-        #Begin a thread settings (to be done)
-        #self.sem_read_block = threading.Semaphore(value=0)
-        #self.sem_recv_block = threading.Semaphore(value=0)
-        #self.sem_config_block = threading.Semaphore()
-        
+
         """:obj:`~logging.Logger`: Main logger for this class"""
         if logdir is None:
             #'Directory where log files should be stored'
@@ -78,15 +73,14 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         self.logger = log_call.setup_main_logger()
         
         if load_config:
-           # Read CAN settings from a file 
+           # Read UHAL settings from a file 
             self.__uri, self.__addressFilePath =   self.load_settings_file()          
 
         # Initialize library and set connection parameters
         self.__uhalMsgQueue = deque([], 100)
         self.__cnt = Counter()
         self.error_counter = 0
-        self.__pill2kill = Event()
-        #self.__lock = Lock()     
+        self.__pill2kill = Event()  
         self.__hw = None
         self.logger.success('....Done Initialization!')
         self.__address_byte = [0x80, 0x88, 0x90, 0x98, 0x80]
@@ -96,46 +90,56 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
             self.logger_file = Logger().setup_file_logger(name = "UHALWrapper",console_loglevel=console_loglevel, logger_file = ts)#for later usage
             self.logger_file.success('....Done Initialization!')
     
-    def set_hw_connection(self):
-        self.logger.info(f'Starting a Thread for MOPSHUB')
-        #self.__uhalMsgThread = Thread(target=self.read_uhal_mopshub_message, args=(["reg0","reg1","reg2"], 0.001,  None))#self.between_thread_callback)
-        #self.__uhalMsgThread.start()  
-                               
-    def between_thread_callback(self):
-        loop = asyncio.new_event_loop()
-        loop.run_until_complete(self.call_back_read_uhal_mopshub_message())
-    
-    def call_back_read_uhal_mopshub_message(self):
-        self.read_uhal_mopshub_message(reg = ["reg0","reg1","reg2"], timeout=0.001, out_msg = None)
+    def config_ipbus_hardware(self, uri = None, addressFilePath = None):
+        """
+        This function establishes a connection to the hardware device using the specified URI and address file path.
+        If no URI or address file path is provided, it uses the default values specified during object initialization.
         
-    def config_uhal_hardware(self, uri = None, addressFilePath = None):
-        if uri is None:
-            uri = self.__uri
-        if addressFilePath is None: 
-            addressFilePath = self.__addressFilePath 
-        hw = uhal.getDevice("mopshub", uri, "file://" + addressFilePath)
-        self.set_uhal_hardware(hw)
-        self.set_hw_connection()
-        return hw
+        Parameters:
+        - uri (str): String with the protocol and location of the hardware endpoint in URI format. Defaults to None.
+        - addressFilePath (str): String with the path to the XML address table for the hardware device. Defaults to None.
+    
+        Returns:
+        - hw_interface: A HwInterface object representing the configured hardware interface.
+    
+        Usage:
+        hw_interface = config_ipbus_hardware(uri="ipbusudp-2.0://localhost:50001", addressFilePath="/path/to/address_table.xml")
+    
+        Example:
+        # Configure UHAL hardware interface with default URI and address file path
+        hw_interface = config_ipbus_hardware()
+    """
+        if uri is None: uri = self.__uri
+        if addressFilePath is None: addressFilePath = self.__addressFilePath 
+        hw_interface = uhal.getDevice("mopshub", uri, "file://" + addressFilePath)
+        self.set_uhal_hardware(hw_interface)
 
-    def get_ual_node(self, hw =None, registerName = None):
-        node = hw.getNode(registerName)
-        return node
+        return hw_interface
 
     def load_settings_file(self, file="main_settings.yml"):
-        """Load all the information related to the hardware 
-        Parameters
-        ----------
-        file : :obj:`str` represents the yaml file name 
         """
-        
-        filename = lib_dir + config_dir + file
+        Load all the information related to the hardware from a YAML settings file.
+    
+        Parameters:
+        - file (str, optional): The name of the YAML settings file. Defaults to "main_settings.yml".
+    
+        Returns:
+        - tuple: A tuple containing the URI and address file path loaded from the settings file.
+    
+        Usage:
+        # Load settings from the default YAML file
+        uri, address_file_path = load_settings_file()
+        """
+        # Construct the full path to the settings file
         filename = os.path.join(lib_dir, config_dir + file)
+         # Get the last modified date of the settings file
         test_date = time.ctime(os.path.getmtime(filename))
         # Load settings from bus settings file
         self.logger.notice("Loading bus settings from the file %s produced on %s" % (filename, test_date))
         try:
+            # Open and load settings from the YAML file
             _channelSettings = AnalysisUtils().open_yaml_file(file=config_dir + "main_settings.yml", directory=lib_dir)
+            # Extract URI and address file path from loaded settings
             _uri = _channelSettings['ethernet']["uri"]
             _addressFilePath = _channelSettings['ethernet']["addressFilePath"]
             return _uri,_addressFilePath
@@ -143,10 +147,23 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
           self.logger.error("uri %s settings Not found" % (_uri)) 
           return None,None
 
-    def read_uhal_message(self, hw = None, node =None, registerName=None, timeout=None, out_msg = True, w_r= "Read"):
-        """Read incoming UHAL messages without storing any Queue
-        node: obj: uhal._core type 
-        registerName: str: 
+    def read_uhal_message(self, hw = None, node =None, registerName=None, out_msg = True, w_r= "Read"):
+        """
+        Read a value from a uHAL node.
+    
+        Parameters:
+        - hw (uhal.HwInterface, optional): The uHAL hardware interface object. Defaults to None.
+        - node (uhal.Node, optional): The uHAL node object representing the register to read from. Defaults to None.
+        - registerName (str, optional): The name of the register being read from. Defaults to None.
+        - out_msg (bool, optional): Flag indicating whether to output log messages. Defaults to True.
+        - w_r (str, optional): Indicates whether the operation is a read or a write. Defaults to "Read".
+    
+        Returns:
+        - uhal.ValWord: The value read from the register.
+    
+        Usage:
+        # Assuming 'hw' and 'node' are valid objects
+        value = read_uhal_message(hw, node, "REGISTER_NAME")
         """
         reg_value = node.read()
         # Send IPbus transactions
@@ -154,38 +171,94 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         if out_msg:  self.logger.info(f'{w_r} {hex(reg_value.value())} : {registerName}')
         return reg_value
     
-    def write_uhal_mopshub_message(self, hw =None, data=None,reg =None, timeout=None, out_msg= True):
-        """Combining writing functions for different |CAN| interfaces
-        Parameters
-        ----------
-        data : :obj:`list` of :obj:`int` or :obj:`bytes`
-            Data bytes
-
-        timeout : :obj:`int`, optional
-            |SDO| write timeout in milliseconds. When :data:`None` or not
-            given an infinit timeout is used.
+    def write_elink_message(self, hw=None, data=None, reg=None, out_msg=True):
         """
-        nodes = []
-        reqmsg = 0
-        for r in reg:
-            nodes = np.append(nodes,self.get_ual_node(hw =hw, registerName = r))
-        [self.write_uhal_message(hw =hw,node =nodes[data.index(d)], data=d, registerName=r, timeout=timeout, out_msg=out_msg) for r,d in zip(reg,data)]
+        Writes data to multiple registers in the MOPSHub device.
+    
+        This function writes data to multiple registers specified by their names (reg) with corresponding data values.
+        It utilizes the `write_uhal_message` function to perform individual register writes. It then dispatches IPbus
+        transactions and returns a flag indicating if the write requests were successfully queued.
+    
+        Parameters:
+        - hw (HwInterface): The UHAL hardware interface object.
+        - data (list): A list containing the data values to write to each register.
+        - reg (list): A list containing the names of the registers in the address table.
+        - out_msg (bool, optional): Flag to enable/disable printing of warning messages. Defaults to True.
+    
+        Returns:
+        - int: Flag indicating if the write requests were successfully queued (1 for success, 0 for failure).
+    
+        Usage:
+        # Write data to multiple registers in the MOPSHub device
+        success = write_elink_message(hw, data, reg, out_msg)
+        """
+        nodes = []# List to store node objects
+        reqmsg = 0# Flag indicating if the write requests were successfully queued
+        # Retrieve the node objects corresponding to the registers
+        for r in reg: nodes = np.append(nodes,hw.getNode(r))
+         # Perform individual register writes using write_uhal_message function
+        [self.write_uhal_message(hw =hw,node =nodes[data.index(d)], data=d, registerName=r, out_msg=out_msg) for r,d in zip(reg,data)]
+        # Set the flag indicating write requests were made
         reqmsg = 1
+        
         return reqmsg
 
-    def write_uhal_message(self,hw =None, node =None, data=None, registerName=None, timeout=None, out_msg = True ):
+    def write_uhal_message(self,hw =None, node =None, data=None, registerName=None, out_msg = True ):
+        """
+        Writes data to a register and optionally reads back the written value.
+    
+        This function writes data to the specified node/register and optionally reads back the written value
+        to verify the write operation. It then dispatches IPbus transactions and returns a flag indicating
+        if the write request was successfully queued.
+    
+        Parameters:
+        - hw (HwInterface): The UHAL hardware interface object.
+        - node (str): The name of the node containing the register to write.
+        - data (int): The data to write to the register.
+        - registerName (str): The name of the register in the address table.
+        - out_msg (bool, optional): Flag to enable/disable printing of warning messages. Defaults to True.
+    
+        Returns:
+        - int: Flag indicating if the write request was successfully queued (1 for success, 0 for failure).
+    
+        Usage:
+        # Write data to a register and read back the written value
+        success = write_uhal_message(hw, node, data, registerName, out_msg)
+    """
+        # Flag indicating if the write request was successfully queued
         reqmsg = 0
+        # Write data to the node
         node.write(data)
+        # Set the flag indicating a write request was made
         reqmsg= 1
-        reg_ret_value = self.read_uhal_message(hw = hw, node =node, registerName=registerName, timeout=timeout, out_msg = out_msg, w_r= "Writing") 
+        # Read the value back from the register to verify the write operation
+        reg_ret_value = self.read_uhal_message(hw = hw, node =node, registerName=registerName, out_msg = out_msg, w_r= "Writing") 
+        # Compare the written data with the read data
         status = (hex(data) ==hex(reg_ret_value.value())) 
+        # Print a warning message if the read-back data does not match the written data
         if out_msg and not status:  self.logger.warning(f'Writing mismatch in {registerName} [W: {hex(data)} |R:{hex(reg_ret_value.value())}]') 
         # Send IPbus transactions
         hw.dispatch()
-        #time.sleep(timeout)
+        
         return reqmsg         
     
-    def build_response_sdo_msg(self, reg =[], out_msg = True):
+    def build_data_rec_elink(self, reg =[], out_msg = True):
+        """
+        Build a response message for an SDO (Service Data Object) communication.
+    
+        Parameters:
+        - reg (list of str, optional): List containing three hexadecimal strings representing the registers to build the response message from. Defaults to an empty list.
+        - out_msg (bool, optional): Flag indicating whether to output log messages. Defaults to True.
+    
+        Returns:
+        - tuple: A tuple containing:
+            - list of str: The new bytes representing the response message.
+            - str: The hexadecimal representation of the response register.
+    
+        Usage:
+        # Assuming 'reg' is a list of three hexadecimal strings
+        new_bytes, response_reg = build_data_rec_elink(reg)
+        """
         # Data_rec_reg is 76 bits = sdo[12bits]+payload[32bits]+bus_id[5bits]++3bits0+8bits0+16bits0
         reg_values = []
         data_ret = [0 for b in np.arange(9)]    
@@ -194,10 +267,8 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
                                            +bin(int(reg[1],16))[2:].zfill(32) 
                                            +bin(int(reg[2],16))[2:].zfill(32))
         for r in reg: 
-            try:
-                reg_values = np.append(reg_values,hex(r))
-            except:
-                reg_values = np.append(reg_values,r)
+            try: reg_values = np.append(reg_values,hex(r))
+            except: reg_values = np.append(reg_values,r)
         msg_bin_0 = bin(int(reg_values[0],16))[2:].zfill(32)
         msg_bin_1 = bin(int(reg_values[1],16))[2:].zfill(32)
         msg_bin_2 = bin(int(reg_values[2],16))[2:].zfill(32)     
@@ -218,14 +289,14 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         return new_Bytes, responsereg
     
  
-    def dumpMessage(self, cobid, msg, t):
+    def dumpMessage(self, cobid =None, msg =None, t =None):
         """Dumps a uhal message to the screen and log file
         Parameters
         ----------
         cobid : :obj:`int`
-            |CAN| identifier
+            |UHAL| identifier
         msg : :obj:`bytes`
-            |CAN| data - max length 8
+            |UHAL| data - max length 8
         t : obj'int'
         """
         msgstr = '{:3X} {:d}   '.format(cobid, 8)
@@ -234,20 +305,35 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         msgstr += '    ' * (8 - len(msg))
         st = datetime.datetime.fromtimestamp(t).strftime('%H:%M:%S')
         msgstr += str(st)
-        self.logger.info(msgstr)
+        self.logger.report(msgstr)
                        
-    def enable_read_signal (self,timeout =None, out_msg = None,subindex= 0):
+    def enable_read_elink (self, out_msg = None,subindex= 0):
+        """
+        Enable the read signal and wait for an interrupt signal from the Internal MOPSHUB FIFO.
+    
+        Parameters:
+        - timeout (float, optional): Time to wait for each check of the interrupt signal. Defaults to None.
+        - out_msg (bool, optional): Flag indicating whether to output log messages. Defaults to None.
+        - subindex (int, optional): Index value used in log messages. Defaults to 0.
+    
+        Returns:
+        - bool: True if a message is found in the buffer, False otherwise.
+    
+        Usage:
+        # Example usage with optional parameters
+        message_found = enable_read_elink(out_msg=True, subindex=1)
+        """
          #wait for interrupt signal from FIFO
         hw = self.get_uhal_hardware()
         count, count_limit = 0, 3
         #irq_tra_sig = 0x0
         while (count !=count_limit):
             irq_tra_sig =   self.read_uhal_message(hw = hw, 
-                                                    node =self.get_ual_node(hw =hw, registerName = "reg3"),
-                                                    registerName="reg3", timeout=timeout, out_msg = None)
+                                                    node = hw.getNode("IPb_addr3"),
+                                                    registerName="IPb_addr3", out_msg = None)
             count= count+1
             if out_msg: self.logger.info(f'Read irq_tra_sig =  {irq_tra_sig} : Count ({count})')
-            time.sleep(timeout)
+            time.sleep(0.05)#Time to wait for each check of the interrupt signal
             if irq_tra_sig >=0x1:break
         #Read data  from FIFO        
         if irq_tra_sig>0x0:
@@ -255,34 +341,47 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
             if out_msg: self.logger.info(f'Found Message in the buffer (irq_tra_sig = {irq_tra_sig})')
             # Start read elink
             self.write_uhal_message(hw = hw, 
-                                         node =self.get_ual_node(hw =hw, registerName = "reg10"), 
-                                         registerName="reg10", 
+                                         node =hw.getNode("IPb_addr10"), 
+                                         registerName="IPb_addr10", 
                                          data = 0x1, 
-                                         timeout=timeout, out_msg = False)  
+                                         out_msg = False)  
         else: 
             found_msg = False
             self.logger.warning(f'Nothing Found in the buffer (irq_tra_sig = {irq_tra_sig})[{hex(subindex)}]')
         return found_msg 
     
-    def read_uhal_mopshub_message(self, reg =None, timeout=None,  out_msg = True, subindex = 0):
-        
+    def read_elink_message(self, reg =None,  out_msg = True, subindex = 0):
+        """
+        Read message from MOPS Hub.
+    
+        Parameters:
+        - reg (list): List of register names to read.
+        - out_msg (bool, optional): Flag indicating whether to output log messages. Defaults to True.
+        - subindex (int, optional): Index value used in log messages. Defaults to 0.
+    
+        Returns:
+        - tuple: A tuple containing cobid, data, respmsg, responsereg, and timestamp.
+    
+        Usage:
+        # Example usage with optional parameters
+        cobid, data, respmsg, responsereg, timestamp = read_elink_message(reg=["IPb_addr1", "IPb_addr2"], timeout=0.1, out_msg=True, subindex=1)
+        """       
         hw = self.get_uhal_hardware()
         nodes = []
         reg_values = []
         respmsg = 0
-        msg_found =  self.enable_read_signal(timeout= timeout, out_msg = out_msg, subindex = subindex) 
+        msg_found =  self.enable_read_elink(out_msg = out_msg, subindex = subindex) 
         if msg_found:
             for r in reg: 
-                nodes = np.append(nodes,self.get_ual_node(hw =hw, registerName = r))
+                nodes = np.append(nodes,hw.getNode(r))
                 reg_value = nodes[reg.index(r)].read()
                 # Send IPbus transactions
                 hw.dispatch()
-                #time.sleep(timeout)#The code has really developed afer commenting this line
                 if out_msg: self.logger.info(f'Read {r} Value = {hex(reg_value.value())}')
                 reg_values = np.append(reg_values,hex(reg_value.value()))    
             respmsg = 1
             t = time.time()
-            data, responsereg =  self.build_response_sdo_msg(reg = reg_values, out_msg=out_msg)      
+            data, responsereg =  self.build_data_rec_elink(reg = reg_values, out_msg=out_msg)      
             cobid = int(data[0],16)
             data_ret = [0 for b in np.arange(len(data)-1)]
             for i in np.arange(len(data_ret)): data_ret[i] = int(data[i+1],16)
@@ -295,55 +394,81 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
             
             return None, None, respmsg, None, None
         
-    def  return_valid_message(self, nodeId, index, subindex, cobid_ret, data_ret, SDO_TX, SDO_RX,timeout,seu_test):
+    def  check_valid_message(self, nodeId = None, index = None, subindex = None, cobid_ret = None, data_ret = None, SDO_TX = None, SDO_RX = None,seu_test = None):
+        """
+        Check for a valid message and handle error signals.
+    
+        Parameters:
+        - nodeId (int): Node ID.
+        - index (int): Index value.
+        - subindex (int): Subindex value.
+        - cobid_ret (int): COBID return value.
+        - data_ret (list): List of data return values.
+        - SDO_TX (int): SDO transmit value.
+        - SDO_RX (int): SDO receive value.
+        - seu_test (bool): Flag indicating SEU test mode.
+    
+        Returns:
+        - tuple: A tuple containing the decoded data, message validity, status, response message, and response register.
+    
+        Usage:
+        # Example usage with required parameters
+        data, message_valid, status, resp_msg, resp_reg = check_valid_message(nodeId=1, index=2, subindex=3, cobid_ret=0x1234, data_ret=[0x80, 0x43, 0x00, 0x03], SDO_TX=0x10, SDO_RX=0x11, seu_test=False)
+    """
         messageValid = False
+        errorSignal   = False  # check any reset signal from the chip
+        errorResponse = False  # SocketUHAL error message
         status = 0
         respmsg, responsereg = 0, None
-        messageValid_queue = False
         t0 = time.perf_counter()
-        while time.perf_counter() - t0 < 1 and messageValid_queue == False:
+        timeout = 1000
+        queue_copy = deque(self.__uhalMsgQueue)
+        while time.perf_counter() - t0 < timeout / 1000 and messageValid == False:
                 # check the message validity [nodid, msg size,...]
-                for i, (cobid_ret, data_ret, t) in zip(range(len(self.__uhalMsgQueue)), self.__uhalMsgQueue):
+                for i, (cobid_ret, data_ret, t) in zip(range(len(queue_copy)),queue_copy):
                     if not seu_test:
                         
-                        messageValid_queue = (cobid_ret == SDO_RX + nodeId
+                        messageValid = (cobid_ret == SDO_RX + nodeId
                                         and data_ret[0] in [0x80, 0x43, 0x47, 0x4b, 0x4f, 0x42] 
                                         and int.from_bytes([data_ret[1], data_ret[2]], 'little') == index
                                         and data_ret[3] == subindex) 
                     
                     else:
-                        messageValid_queue = (cobid_ret == SDO_TX + nodeId
+                        messageValid = (cobid_ret == SDO_TX + nodeId
                                         and data_ret[0] in [0x40,0x80, 0x43, 0x47, 0x4b, 0x4f, 0x42] 
                                         and int.from_bytes([data_ret[1], data_ret[2]], 'little') == index
                                         and data_ret[3] == subindex) 
                                                 
-                    if (messageValid_queue):
+                    errorSignal = (cobid_ret == 0x700 + nodeId 
+                                  and data_ret[0] in [0x05, 0x08,0x85]) 
+                
+                    errorResponse = (cobid_ret == 0x88 
+                                     and data_ret[0] in [0x00]) 
+    
+    
+                    if (messageValid or errorResponse): 
                         del self.__uhalMsgQueue[i]
                         break
-                if (messageValid_queue ==False):
-                    _, _, respmsg, responsereg, _ = self.read_uhal_mopshub_message(reg = ["reg0","reg1","reg2"], timeout=timeout, subindex = subindex, out_msg = None) 
-                #self.__uhalMsgThread.join()
-        # The following are the only expected response    
-        #
-        # messageValid = (cobid_ret == SDO_RX + nodeId
-        #                 and data_ret[0] in [0x80, 0x43, 0x47, 0x4b, 0x4f, 0x42] 
-        #                 and int.from_bytes([data_ret[1], data_ret[2]], 'little') == index
-        #                 and data_ret[3] == subindex)       
-        if messageValid_queue:
+                    if (messageValid ==False):
+                        _, _, respmsg, responsereg, _ = self.read_elink_message(reg = ["IPb_addr0","IPb_addr1","IPb_addr2"],subindex = subindex, out_msg = None) 
+                #self.__uhalMsgThread.join()     
+        if errorSignal   : self.logger_file.notice(f'Received a reset Signal with cobid:{hex(cobid_ret)} while calling subindex: {hex(subindex)}')
+        if messageValid  or errorSignal:
             status = 1
             nDatabytes = 4 - ((data_ret[0] >> 2) & 0b11) if data_ret[0] != 0x42 else 4
             data = []
             for i in range(nDatabytes-1): 
                 data.append(data_ret[4 + i])
-            return int.from_bytes(data, 'little'), messageValid_queue, status, respmsg, responsereg
+            return int.from_bytes(data, 'little'), messageValid, status, respmsg, responsereg
         else:
             status = 0
             self.logger.info(f'SDO read response timeout (node {nodeId}, index'
                  f' {index:04X}:{subindex:02X})')
-            self.__cnt["messageInvalid_queue"]=self.__cnt["messageInvalid_queue"]+1
-            return None, messageValid_queue, status, respmsg, responsereg
+            self.__cnt["messageValid"]=self.__cnt["messageValid"]+1
+            return None, messageValid, status, respmsg, responsereg
     
     def read_adc(self,hw, bus_id,timeout):
+
         self.logger.debug(f'CIC Channel {bus_id} - ADC readout')
 
         adc_result = [[int(), int()] for _ in range(4)]
@@ -425,24 +550,40 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         return
     
     
-    def read_monitoring_uhal(self,hw =None, spi_reg =None, spi_select=None,cobid = 0X20, timeout=1,out_msg=None):
+    def read_monitoring_uhal(self,hw =None, spi_reg =None, spi_select=None,cobid = 0X20,out_msg=None):
+        """
+        Read monitoring data using the uHAL library.
+    
+        Parameters:
+        - hw: HwInterface object representing the hardware interface.
+        - spi_reg: The SPI register to read.
+        - spi_select: The SPI select value.
+        - cobid: COBID value.
+        - timeout: Timeout value for reading.
+        - out_msg: Flag indicating whether to print log messages.
+    
+        Returns:
+        - tuple: A tuple containing COBID, SPI select, SPI register, and ADC output data.
+    
+        Usage:
+        # Example usage with required parameters
+        cobid_ret, spi_select_ret, spi_reg_ret, adc_out = read_monitoring_uhal(hw=my_hw, spi_reg=0x01, spi_select=0x02, cobid=0x20, timeout=1, out_msg=True)
+        """
+    
         status =0;
         respmsg, responsereg  = 0, None
-        #build Payload in a CAN SDO format
-        mon_reg6_hex = Analysis().binToHexa(bin(cobid)[2:].zfill(8)+
+        #build Payload in a UHAL SDO format
+        mon_IPb_addr6_hex = Analysis().binToHexa(bin(cobid)[2:].zfill(8)+
                                             bin(spi_select)[2:].zfill(8)+
                                             bin(spi_reg)[2:].zfill(8)+
                                             bin(0)[2:].zfill(8)) 
-        reqmsg =  self.write_uhal_mopshub_message(hw =hw, 
-                                              data=[mon_reg6_hex,0x0,0x0,0xa], 
-                                              reg = ["reg6","reg7","reg8","reg9"], 
-                                              timeout=timeout, 
+        reqmsg =  self.write_elink_message(hw =hw, 
+                                              data=[mon_IPb_addr6_hex,0x0,0x0,0xa], 
+                                              reg = ["IPb_addr6","IPb_addr7","IPb_addr8","IPb_addr9"], 
                                               out_msg = out_msg)     
         #read the response from the socket
-        _frame  =  self.read_uhal_mopshub_message(reg = ["reg0","reg1","reg2"], 
-                                                        timeout=timeout, 
+        _frame  =  self.read_elink_message(reg = ["IPb_addr0","IPb_addr1","IPb_addr2"], 
                                                         out_msg = out_msg) 
-        #hw.dispatch()
         _, msg_ret,respmsg_ret, responsereg_ret, t = _frame
         if (not all(m is None for m in _frame[0:2])):
             responsereg_ret = bin(int(responsereg_ret,16))[2:].zfill(96)
@@ -470,67 +611,61 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
             return None, None, None, None 
         #
 
-    def read_sdo_uhal(self,hw= None, bus= None, nodeId=None, index=None, subindex=None, timeout=1, SDO_TX=0x600, SDO_RX=0x580,out_msg=None,seu_test=None):
-        """Read an object via |SDO|
-    
-        Currently expedited and segmented transfer is supported by this method.
-        The function will writing the dictionary request from the master to the node then read the response from the node to the master
-        The user has to decide how to decode the data.
-    
-        Parameters
-        ----------
-        nodeId : :obj:`int`
-            The id from the node to read from
-        index : :obj:`int`
-            The Object Dictionary index to read from
-        subindex : :obj:`int`
-            |OD| Subindex. Defaults to zero for single value entries.
-        timeout : :obj:`int`, optional
-            |SDO| timeout in milliseconds
-    
-        Returns
-        -------
-        :obj:`list` of :obj:`int`
-            The data if was successfully read
-        :data:`None`
-            In case of errors
+    def read_sdo_uhal(self,hw= None, bus= None, nodeId=None, index=None, subindex=None, SDO_TX=0x600, SDO_RX=0x580,out_msg=None,seu_test=None):
         """
+        Read data using the SDO protocol with uHAL.
+    
+        Parameters:
+        - hw: HwInterface object representing the hardware interface.
+        - bus: Bus identifier.
+        - nodeId: Node ID.
+        - index: Index value.
+        - subindex: Subindex value.
+        - SDO_TX: Transmit COBID value.
+        - SDO_RX: Receive COBID value.
+        - out_msg: Flag indicating whether to print log messages.
+        - seu_test: Flag indicating whether it's a single event upset test.
+    
+        Returns:
+        - tuple: A tuple containing the read data, request message status, request message, response message status, response message, and overall status.
+    
+        Usage:
+        # Example usage with required parameters
+        data, reqmsg, requestreg, respmsg, responsereg, status = read_sdo_uhal(hw=my_hw, bus=1, nodeId=2, index=0x1234, subindex=0x01, SDO_TX=0x600, SDO_RX=0x580, out_msg=True, seu_test=False)
+        """       
         status =0;
         respmsg, responsereg  = 0, None
         if nodeId is None or index is None or subindex is None:
-            self.logger.warning('SDO read protocol cancelled before it could begin.')               
+            self.logger.warning('SDO read protocol UHALcelled before it could begin.')               
             self.__cnt["SDO read total"] = self.__cnt["SDO read total"]+1
             return None, None, None,respmsg, responsereg , status 
-        hw =  self.get_uhal_hardware()
-        #build Payload in a CAN SDO format
-        reg6_hex, reg7_hex, reg8_hex, requestreg = self.build_request_sdo_msg(cobid = SDO_TX+nodeId, bus = bus,  index=index, subindex=subindex,seu_test = seu_test)
+        hw_interface =  self.get_uhal_hardware()
+        #build Payload in a UHAL SDO format
+        IPb_addr6_hex, IPb_addr7_hex, IPb_addr8_hex, requestreg = self.build_data_tra_elink(cobid = SDO_TX+nodeId, bus = bus,  index=index, subindex=subindex,seu_test = seu_test)
 
-        #write the Request to the Socket
+        #write the Request
         try:
-            reqmsg =  self.write_uhal_mopshub_message(hw =hw, 
-                                                  data=[reg6_hex,reg7_hex,reg8_hex,0xa], 
-                                                  reg = ["reg6","reg7","reg8","reg9"], 
-                                                  timeout=timeout, 
+            reqmsg =  self.write_elink_message(hw =hw_interface, 
+                                                  data=[IPb_addr6_hex,IPb_addr7_hex,IPb_addr8_hex,0xa], 
+                                                  reg = ["IPb_addr6","IPb_addr7","IPb_addr8","IPb_addr9"], 
                                                   out_msg = out_msg)     
         except:
             reqmsg = 0
-        #read the response from the socket
-        _frame  =  self.read_uhal_mopshub_message(reg = ["reg0","reg1","reg2"],
-                                                       timeout=timeout,
+        #read the response
+        _frame  =  self.read_elink_message(reg = ["IPb_addr0","IPb_addr1","IPb_addr2"],
                                                        subindex=subindex, 
                                                        out_msg = out_msg) 
         
         hw.dispatch()
         cobid_ret, msg_ret,respmsg_ret, responsereg_ret, t = _frame
         if (not all(m is None for m in _frame[0:2])):
-           data_ret, messageValid, status,respmsg, responsereg  =  self.return_valid_message(nodeId=nodeId,
+           data_ret, messageValid, status,respmsg, responsereg  =  self.check_valid_message(nodeId=nodeId,
                                                                                              index=index, 
                                                                                              subindex=subindex,
                                                                                              cobid_ret=cobid_ret,
                                                                                              data_ret=msg_ret,
                                                                                              SDO_TX=SDO_TX, SDO_RX=SDO_RX,
-                                                                                             seu_test = seu_test,
-                                                                                             timeout=timeout)
+                                                                                             seu_test = seu_test)
            if responsereg is None: 
                responsereg = responsereg_ret 
                respmsg = respmsg_ret 
@@ -552,7 +687,26 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
             else : return None, reqmsg, hex(requestreg),respmsg, responsereg, status   
 
                                 
-    def build_request_sdo_msg(self,bus = None, cobid = None, index=None, subindex=None,msg_0 =0x40,seu_test = None):
+    def build_data_tra_elink(self,bus = None, cobid = None, index=None, subindex=None,msg_0 =0x40,seu_test = None):
+        """
+        Build an SDO request message.
+    
+        Parameters:
+        - bus: Bus identifier.
+        - cobid: COBID value.
+        - index: Index value.
+        - subindex: Subindex value.
+        - msg_0: Message 0 value.
+        - seu_test: Flag indicating whether it's a single event upset test.
+    
+        Returns:
+        - tuple: A tuple containing the hexadecimal values for registers 6, 7, 8, and the request register.
+    
+        Usage:
+        # Example usage with required parameters
+        IPb_addr6_hex, IPb_addr7_hex, IPb_addr8_hex, requestreg = build_data_tra_elink(bus=1, cobid=0x600, index=0x1234, subindex=0x01, msg_0=0x40, seu_test=False)
+        """
+
         max_data_bytes = 8
         msg = [0 for i in range(max_data_bytes)]
         msg[0] = msg_0
@@ -562,20 +716,20 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         msg_bin_1 = bin(msg[1])[2:].zfill(8)
         msg_bin_2 = bin(msg[2])[2:].zfill(8)
         msg_bin_3 = bin(msg[3])[2:].zfill(8)
-        reg6_hex = Analysis().binToHexa(bin(cobid)[2:].zfill(12)#12bits
+        IPb_addr6_hex = Analysis().binToHexa(bin(cobid)[2:].zfill(12)#12bits
                                         +msg_bin_0#8bits
                                         +msg_bin_2#8bits
                                         +msg_bin_1[0:4]#4bits
                                         )
         if seu_test: data = bin(0xA)[2:].zfill(8)
         else:  data = bin(0)[2:].zfill(8)
-        reg7_hex = Analysis().binToHexa(msg_bin_1[4:8]#4bits
+        IPb_addr7_hex = Analysis().binToHexa(msg_bin_1[4:8]#4bits
                                         +msg_bin_3#8bits
                                         +bin(bus)[2:].zfill(8)#8bits
                                         +data#8bits
                                         +bin(0)[2:].zfill(4))#4bits
                                                 
-        reg8_hex = Analysis().binToHexa(bin(0)[2:].zfill(32))
+        IPb_addr8_hex = Analysis().binToHexa(bin(0)[2:].zfill(32))
         
         requestreg = Analysis().binToHexa(bin(cobid)[2:].zfill(12)#12bits
                                         +msg_bin_0#8bits
@@ -587,30 +741,60 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
                                         +bin(0)[2:].zfill(8)#it was msg_bin_1 8bits
                                         +bin(0)[2:].zfill(4)
                                         +bin(0)[2:].zfill(32))
-        return reg6_hex, reg7_hex, reg8_hex, requestreg
+        return IPb_addr6_hex, IPb_addr7_hex, IPb_addr8_hex, requestreg
     
     
     def create_mopshub_adc_data_file(self,outputname, outputdir):
+        """
+        Create a MopsHub ADC data file.
+    
+        Parameters:
+        - outputname: Name of the output file.
+        - outputdir: Directory to save the output file.
+    
+        Returns:
+        - tuple: A tuple containing the CSV writer and the output file CSV.
+    
+        Usage:
+        # Example usage with required parameters
+        csv_writer, out_file_csv = create_mopshub_adc_data_file(outputname="data.csv", outputdir="/path/to/directory")
+        """
         # Write header to the data
         fieldnames = ['Times','elabsed_time',"test_tx",'bus_id',"nodeId","adc_ch","index","sub_index","adc_data", "adc_data_converted","reqmsg","requestreg","respmsg","responsereg", "status"]
-        csv_writer = AnalysisUtils().build_data_base(fieldnames=fieldnames,outputname = outputname, directory = outputdir)        
-        return csv_writer
+        csv_writer,out_file_csv = AnalysisUtils().build_data_base(fieldnames=fieldnames,outputname = outputname, directory = outputdir)        
+        return csv_writer,out_file_csv
     
-    def read_mopshub_adc_channels(self, hw= None, bus_range= None, file= None, directory= None,outputname= None, outputdir= None , nodeId= None, n_readings= None,timeout= None,
+    def read_mopshub_adc_channels(self, hw= None, bus_range= None, file= None, config_dir= None,outputname= None, outputdir= None , nodeIds= None,
                                   csv_writer= None, csv_file = None, seu_test =None):
-        """Start actual CANopen communication
-        This function contains an endless loop in which it is looped over all
-        ADC channels. Each value is read using
-        :meth:`read_sdo_can_thread` and written to its corresponding
-        """     
-        self.logger.info(f'Reading ADC channels of Mops with ID {nodeId}')
+        """
+        Read ADC channels of MopsHub.
+    
+        Parameters:
+        - hw: HwInterface object representing the hardware interface.
+        - bus_range: Range of bus identifiers.
+        - file: Name of the YAML configuration file.
+        - config_dir: Directory containing the configuration file.
+        - outputname: Name of the output file.
+        - outputdir: Directory to save the output file.
+        - nodeIds: List of node IDs to read ADC channels from.
+        - csv_writer: CSV writer object to write data to the output file.
+        - csv_file: Output file CSV object.
+        - seu_test: Flag indicating whether it's a single event upset test.
+    
+        Returns:
+        - None
+    
+        Usage:
+        # Example usage with required parameters
+        read_mopshub_adc_channels(hw=my_hw, bus_range=[1, 2], file="config.yml", config_dir="/path/to/config", outputname="output.csv", outputdir="/path/to/output", nodeIds=[1, 2],timeout=1, csv_writer=my_csv_writer, csv_file=my_csv_file, seu_test=False)
+        """ 
+        self.logger.info(f'Reading ADC channels of Mops with ID {nodeIds}')
         def exit_handler():
         # This function will be called on script termination
             self.logger.warning("Script interrupted. Closing the program.")
-            self.stop()
             sys.exit(0)
             
-        dev = AnalysisUtils().open_yaml_file(file=file, directory=directory)
+        dev = AnalysisUtils().open_yaml_file(file=file, directory=config_dir)
         # yaml file is needed to get the object dictionary items
         _adc_channels_reg = dev["adc_channels_reg"]["adc_channels"]
         _adc_index = list(dev["adc_channels_reg"]["adc_index"])[0]
@@ -619,14 +803,16 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         atexit.register(exit_handler)
         monitoringTime = time.time()
         i = 0
+        file_time_now = datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
         try :  
             while True:
                 #user_input = input("Press Enter to finish: ")  
                 i = i+1
                 for bus in bus_range:
-                    for node in nodeId:    
+                    for node in nodeIds:    
                         # Read ADC channels
-                        for c in tqdm(np.arange(len(_channelItems)),colour="green"):
+                        #for c in tqdm(np.arange(len(_channelItems)),colour="green"):
+                        for c in np.arange(len(_channelItems)):
                             channel =  _channelItems[c]
                             subindex = channel - 2
                             data_point, reqmsg, requestreg, respmsg,responsereg , status =  self.read_sdo_uhal(hw =hw,
@@ -634,18 +820,14 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
                                                                                                                nodeId= node, 
                                                                                                                index = int(_adc_index, 16), 
                                                                                                                subindex = subindex, 
-                                                                                                               timeout = timeout,
                                                                                                                seu_test = seu_test,
                                                                                                                out_msg = False)                   
-                            
-                            #time.sleep(0.01) #It makes no difference
-                            file_time_now = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
                             ts = time.time()
                             elapsedtime = ts - monitoringTime
                             if data_point is not None:
                                 adc_converted = Analysis().adc_conversion(_adc_channels_reg[str(channel)], data_point)
                                 adc_converted = round(adc_converted, 3)
-                                self.logger.info(f'[{i}|{bus}] Got data for channel {channel} [{hex(subindex)}]: = {adc_converted}')
+                                self.logger.report(f'[{i}|{bus}] Got data for channel {channel} [{hex(subindex)}]: = {adc_converted}')
                             else:
                                 adc_converted = None
                             csv_writer.writerow((str(file_time_now),
@@ -667,11 +849,10 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         except (KeyboardInterrupt):
             #Handle Ctrl+C to gracefully exit the loop
             self.logger.warning("User interrupted. Closing the program.")
-            #break
-            sys.exit(0) 
-            #self.stop()
         finally:
-            csv_writer.writerow((str(time_now),
+            ts = time.time()
+            elapsedtime = ts - monitoringTime
+            csv_writer.writerow((str(file_time_now),
                          str(elapsedtime),
                          str(1),
                          str(None),
@@ -686,8 +867,10 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
                          str(None),
                          str(None), 
                          "End of Test"))    
-            self.logger.info(f'No. of invalid responses = {self.__cnt["messageInvalid_queue"]}|| No. of failed responses = {self.__cnt["messageFailed_response"]}')
+            csv_file.close()
+            self.logger.info(f'No. of invalid responses = {self.__cnt["messageValid"]}|| No. of failed responses = {self.__cnt["messageFailed_response"]}')
             self.logger.notice("ADC data are saved to %s/%s" % (outputdir,outputname))
+        
         return None
     # Setter and getter functions
     def set_uhal_hardware(self, x):
@@ -697,7 +880,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         self.__nodeList = x
     
     def set_channelPorts(self, x):
-        self.__can_channels = x
+        self.__UHAL_channels = x
             
     def set_channel(self, x):
         self.__channel = x
@@ -722,7 +905,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         return self.__nodeList
 
     def get_channelPorts(self):
-        return self.__can_channels
+        return self.__UHAL_channels
         
     def get_bitrate(self):
         return self.__bitrate
@@ -732,16 +915,16 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
         
     def get_ipAddress(self):
         """:obj:`str` : Network address of the AnaGate partner. Only used for
-        AnaGate CAN interfaces."""
+        AnaGate UHAL interfaces."""
         if self.__interface == 'Kvaser':
-            raise AttributeError('You are using a Kvaser CAN interface!')
+            raise AttributeError('You are using a Kvaser UHAL interface!')
         return self.__ipAddress
 
     def get_uhal_hardware(self):
         return self.__hw
     
     def get_channel(self):
-        """:obj:`int` : Number of the crurrently used |CAN| channel."""
+        """:obj:`int` : Number of the crurrently used |UHAL| channel."""
         return self.__channel
            
     def get_channelState(self, channel):
@@ -767,7 +950,7 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
 
     @property
     def uhalMsgQueue(self):
-        """:class:`collections.deque` : Queue object holding incoming |CAN|
+        """:class:`collections.deque` : Queue object holding incoming |UHAL|
         messages. This class supports thread-safe adding and removing of
         elements but not thread-safe iterating. Therefore the designated
         :class:`~threading.Lock` object :attr:`lock` should be acquired before
@@ -783,8 +966,8 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
     @property
     def kvaserLock(self):
         """:class:`~threading.Lock` : Lock object which should be acquired for
-        performing read or write operations on the Kvaser |CAN| channel. It
-        turned out that bad things can happen if that is not done."""
+        performing read or write operations on the Kvaser |UHAL| channel. It
+        turned out that bad things UHAL happen if that is not done."""
         return self.__kvaserLock
 
     @property
@@ -797,13 +980,13 @@ class UHALWrapper(object):#READSocketcan):#Instead of object
     @property
     def pill2kill(self):
         """:class:`threading.Event` : Stop event for the message collecting
-        method :meth:`read_can_message_thread`"""
+        method :meth:`read_UHAL_message_thread`"""
         return self.__pill2kill
     
     # @property
     def channel(self):
-        """Currently used |CAN| channel. The actual class depends on the used
-        |CAN| interface."""
+        """Currently used |UHAL| channel. The actual class depends on the used
+        |UHAL| interface."""
         return self.ch0
 
     @property
@@ -828,49 +1011,49 @@ def main():
     """Wrapper function for using the server as a command line tool
 
     The command line tool accepts arguments for configuring the server which
-    are transferred to the :class:`CanWrapper` class.
+    are transferred to the :class:`UHALWrapper` class.
     """
 
     # Parse arguments
-    parser = ArgumentParser(description='CANMOPS Interpreter for MOPS chip',
+    parser = ArgumentParser(description='UHALMOPS Interpreter for MOPS chip',
                             epilog='For more information contact '
                             'ahmed.qamesh@cern.ch',
                             formatter_class=ArgumentDefaultsHelpFormatter)
     
-    parser.set_defaults(interface='socketcan')
-    # CAN interface
-    CGroup = parser.add_argument_group('CAN interface')
+    parser.set_defaults(interface='socketUHAL')
+    # UHAL interface
+    CGroup = parser.add_argument_group('UHAL interface')
     iGroup = CGroup.add_mutually_exclusive_group()
     iGroup.add_argument('-K', '--kvaser', action='store_const', const='Kvaser',
                         dest='interface',
-                        help='Use Kvaser CAN interface (default). When no '
+                        help='Use Kvaser UHAL interface (default). When no '
                         'Kvaser interface is found or connected a virtual '
                         'channel is used.')
     iGroup.add_argument('-A', '--anagate', action='store_const',
                         const='AnaGate', dest='interface',
-                        help='Use AnaGate Ethernet CAN interface')
+                        help='Use AnaGate Ethernet UHAL interface')
     
-    iGroup.add_argument('-S', '--socketcan', action='store_const',
-                        const='socketcan', dest='interface',
-                        help='Use socketcan  interface')
+    iGroup.add_argument('-S', '--socketUHAL', action='store_const',
+                        const='socketUHAL', dest='interface',
+                        help='Use socketUHAL  interface')
     
-    # CAN settings group
-    cGroup = parser.add_argument_group('CAN settings')
+    # UHAL settings group
+    cGroup = parser.add_argument_group('UHAL settings')
     cGroup.add_argument('-c', '--channel', metavar='CHANNEL',
-                        help='Number of CAN channel to use', 
+                        help='Number of UHAL channel to use', 
                         default=0)
     
     cGroup.add_argument('-i', '--ipaddress', metavar='IPADDRESS',
                         default='192.168.1.254', dest='ipAddress',
-                        help='IP address of the AnaGate Ethernet CAN '
+                        help='IP address of the AnaGate Ethernet UHAL '
                         'interface')
     cGroup.add_argument('-b', '--bitrate', metavar='BITRATE',
                         default=125000,
-                        help='CAN bitrate as integer in bit/s')
+                        help='UHAL bitrate as integer in bit/s')
 
     cGroup.add_argument('-sp', '--samplePoint', metavar='SAMPLEPOINT',
                         default=0.5,
-                        help='CAN sample point in decimal')
+                        help='UHAL sample point in decimal')
 
     cGroup.add_argument('-sjw', '--sjw', metavar='SJW',
                         default=4,
@@ -900,22 +1083,7 @@ def main():
     args = parser.parse_args()
     
     # Start the server
-    wrapper = CanWrapper(**vars(args))  
+    wrapper = UHALWrapper(**vars(args))  
 
-class ConsumerThread(Thread):
-    def run(self):
-        global queue
-        while True:
-            lock.acquire()
-            if not queue:
-                print ("Nothing in queue, but consumer will try to consume")
-            num = queue.pop(0)
-            print ("Consumed", num) 
-            lock.release()
-            time.sleep(random.random())  
-               
 if __name__ == "__main__":
     main()      
-    
-    ProducerThread().start()
-    ConsumerThread().start()  

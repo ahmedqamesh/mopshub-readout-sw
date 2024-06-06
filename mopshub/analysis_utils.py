@@ -9,7 +9,11 @@ from pathlib import Path
 import coloredlogs as cl
 import socket
 import ipaddress
-
+from logger_main   import Logger
+import logging
+log_format = '%(log_color)s[%(levelname)s]  - %(name)s -%(message)s'
+log_call = Logger(log_format=log_format, name="Analysis", console_loglevel=logging.INFO, logger_file=False)
+logger = log_call.setup_main_logger()#
 
 class AnalysisUtils(object):
     
@@ -34,7 +38,19 @@ class AnalysisUtils(object):
         filename = os.path.join(directory, file)
         with open(filename, 'w') as ymlfile:
             yaml.dump(loaded, ymlfile, sort_keys=False)#default_flow_style=False
+
+
+    def check_last_row (self, data_frame = None, file_name = None,column = "status"):
+        data_frame_last_row = data_frame.tail(1)
+        
+        pattern_exists = any(data_frame_last_row[column].astype(str).str.contains("End of Test"))
+        if pattern_exists: 
+            logger.notice(f"Noticed a Complete test file named: {file_name}") 
+            data_frame = data_frame.iloc[:-1]
+        else: logger.warning(f"Noticed Incomplete test file")    
+        return data_frame
     
+        
     def save_to_csv(self,data=None, outname=None, directory=None):
         df = pd.DataFrame(data)
         if not os.path.exists(directory):

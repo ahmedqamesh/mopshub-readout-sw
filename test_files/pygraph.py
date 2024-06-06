@@ -32,7 +32,7 @@ class MainWindow(QtWidgets.QMainWindow):
     #     childWindow.setWindowTitle("Online data monitoring for ADC channel %s" % str(subindex))
     #     childWindow.resize(600, 300)  # w*h
     #     logframe = QFrame()
-    #     logframe.setLineWidth(0.6)
+    #     logframe.setLineWidth(1)
     #     childWindow.setCentralWidget(logframe)
     #     self.trendLayout = QGridLayout()
     #     Fig = self.graphWidget

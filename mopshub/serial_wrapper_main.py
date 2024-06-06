@@ -7,16 +7,13 @@ import numpy as np
 from clint.textui import colored
 try:
     from logger_main   import Logger
-    from design_info   import DesignInfo
 except (ImportError, ModuleNotFoundError):
     from .logger_main   import Logger
-    from .design_info   import DesignInfo
 import sys   
 import logging
 import re
 import subprocess
-sm_info = DesignInfo()
-
+timeout = 0.05
 log_format = '%(log_color)s[%(levelname)s]  - %(name)s -%(message)s'
 log_call = Logger(log_format = log_format,name = "Serial Debug",console_loglevel=logging.INFO, logger_file = False)
 
@@ -34,14 +31,14 @@ class SerialServer(serial.Serial):
             super().__init__(port=port, baudrate=baudrate, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE,
                              stopbits=serial.STOPBITS_ONE) 
         except Exception as e : 
-            ports_return = self.avail_ports(msg = None)
+            ports_return = self.list_available_ports(msg = None)
             self.logger.error(f'Port{port} is not activated, The following ports are available {ports_return}')
-            self.avail_ports(msg = True)
+            self.list_available_ports(msg = True)
             sys.exit(1)
             
         self.__bytes_written = 0
      
-    def avail_ports(self,msg = True):
+    def list_available_ports(self,msg = True):
         ports = serial.tools.list_ports.comports()
         ports_return = []
         for port in ports:
@@ -50,20 +47,6 @@ class SerialServer(serial.Serial):
             if msg:  self.logger.info(f'Port : {port.device} - {port.description} - {port.manufacturer} - {port.serial_number}')
         return ports_return
 
-    def debug_mopshub_uart(self,read_sm = ["0","1","2","3","4","5","6","7"]):   
-        return_states = []
-        for sm_id in read_sm:
-            #Write to Uart 
-            self.tx_data(bytearray(bytes.fromhex("0"+sm_id)))
-            # Read from Uart
-            time.sleep(0.2)
-            Byte = self.rx_data() #read one byte
-            # print info
-            return_states = np.append(return_states,int(Byte.hex(),16))
-            sm_info.get_sm_info(sm_id = int(sm_id,16), return_state = Byte)
-            time.sleep(0.5)
-        return return_states
-    
     def openServer(self):
         if not self.isOpen():
             self.open()
@@ -73,7 +56,7 @@ class SerialServer(serial.Serial):
             # Destructor, close port when serial port instance is freed
             self.__del__()
     def rx_data(self):
-        #Byte = ser.readline()
+        #Byte = self.readline()
         return self.read() #read one byte
     
     

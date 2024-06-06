@@ -31,7 +31,7 @@ class DesignInfo(object):
         self._design_sm_info = AnalysisUtils().open_yaml_file(file= mopsub_sm_yaml, directory=lib_dir)
         self.logger = log_call.setup_main_logger()
     
-    def get_sm_info(self, sm_id = 0,return_state = None):
+    def get_sm_info(self, dut = "UART", sm_id = 0,return_state = None):
         _state_machines_dict = self._design_sm_info["state_machines"]
         _sm_items =  list(_state_machines_dict["sm_items"])
         _sm_name =  AnalysisUtils().get_info_yaml(dictionary=_state_machines_dict["sm_items"] , index=_sm_items[sm_id], subindex="sm_name")
@@ -48,10 +48,10 @@ class DesignInfo(object):
                     _return_state = "INVALID"
                     self.logger.warning(f'Detect invalid pattern {_return_state}')
             _return_state_int = str(int(return_state.hex(),16))
-            self.logger.info(f'({_sm_items[sm_id]}) {_description_items}: {_sm_return_state[_return_state]} [{return_state.hex().upper()}]')
+            self.logger.info(f'{dut}- ({_sm_items[sm_id]}) {_description_items}: {_sm_return_state[_return_state]} [{return_state.hex().upper()}]')
         except:
             _return_state_int = str(int(return_state.hex(),16))
-            self.logger.warning(f'({_sm_items[sm_id]}) {_description_items}: {_return_state}[{return_state.hex().upper()}]')
+            self.logger.info(f'{dut}- ({_sm_items[sm_id]}) {_description_items}: {_return_state}[{return_state.hex().upper()}]')
         
     def extract_transitions(self,verilog_file = None):
         file_name = os.path.basename(verilog_file)

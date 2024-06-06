@@ -24,16 +24,20 @@ from mopshub.uhal_wrapper_main   import UHALWrapper
 #    pass
 
 import gc
-rootdir = os.path.dirname(os.path.abspath(__file__)) 
-lib_dir = rootdir[:-11]
+log_format = '%(log_color)s[%(levelname)s]  - %(name)s -%(message)s'
+log_call = Logger(log_format = log_format,name = "MOPS-Hub GUI",console_loglevel=logging.INFO, logger_file = False)
+
+rootdir = os.path.dirname(os.path.abspath(__file__))
 config_dir = "config_files/"
+lib_dir = rootdir[:-11]
 #config_yaml =config_dir + "mops_config.yml"
 config_yaml = config_dir + "gui_mainSettings.yml"
 icon_location = "mopshubGUI/icons/"
+
 class mopshubWindow(QWidget): 
     def __init__(self, console_loglevel=logging.INFO):
        super(mopshubWindow, self).__init__(None)
-       self.logger = Logger().setup_main_logger(name="MOPS-HUB GUI", console_loglevel=console_loglevel)
+       self.logger = log_call.setup_main_logger()
        self.MenuBar = menu_window.MenuWindow(self)
        self.__conf = AnalysisUtils().open_yaml_file(file=config_yaml, directory=lib_dir)
        self.__appName = self.__conf["Application"]["app_name"] 
@@ -42,12 +46,17 @@ class mopshubWindow(QWidget):
        self.__devices = self.__conf["Application"]["Devices"]
        self.__multi_mode = self.__conf["Application"]["multi_mode"]
        self.__mopshub_mode = self.__conf["Application"]["mopshub_mode"]
+       self.__mopshub_communication_mode = self.__conf["Application"]["mopshub_communication_mode"]
+       self.__refresh_rate = self.__conf["Application"]["refresh_rate"] #millisecondsrefresh_rate
+       self.__wait_time      = self.__conf["Application"]["wait_time"]
        self.trim_mode = self.__conf["Application"]["trim_mode"] 
         
        self.MOPSChildWindow = mops_child_window.MopsChildWindow(self, opcua_config="opcua_config.yaml")
+       
        self.DataMonitoring = data_monitoring.DataMonitoring(self)
        self.update_opcua_config_box()
        self.__hw = self.connect_server(uri = "ipbusudp-2.0://192.168.200.16:50001", file = config_dir+"ipbus_example.xml")
+       self.__seu_test = True
        # get Default info 
        self.__devices = ["mops"]
        self.__bus_num = 2
@@ -58,9 +67,9 @@ class mopshubWindow(QWidget):
     def connect_server(self,uri = None, file = None):
         # PART 1: Argument parsing
         self.wrapper = UHALWrapper(load_config = True, mainWindow = self)
-        # PART 2: Creating the HwInterface
-        hw = self.wrapper.config_uhal_hardware()
-        return hw
+        self.__uri, self.__addressFilePath =   self.wrapper.load_settings_file()
+        hw_interface = self.wrapper.config_ipbus_hardware(uri = self.__uri, addressFilePath = self.__addressFilePath)
+        return hw_interface
             
     def update_opcua_config_box(self):
         self.conf_cic = AnalysisUtils().open_yaml_file(file=config_dir + "mopshub_config.yaml", directory=lib_dir)
@@ -79,8 +88,8 @@ class mopshubWindow(QWidget):
         The function Will update the configured device section with the registered devices according to the file main_cfg.yml
         '''
         mops_child = mops_child_window.MopsChildWindow()
-        deviceName, version, icon_dir,nodeIds, self.__dictionary_items, self.__adc_channels_reg,\
-        self.__adc_index, self.__chipId, self.__index_items, self.__conf_index, self.__mon_index, self.__resistor_ratio, self.__refresh_rate, self.__ref_voltage   =mops_child.update_device_box(device = self.__devices[0], mainWindow = self)     
+        self.__deviceName, self.__version, self.__appIconDir,self.__nodeIds, self.__dictionary_items, self.__adc_channels_reg,\
+            self.__adc_index, self.__chipId, self.__index_items, self.__conf_index, self.__mon_index, self.__resistor_ratio, self.__BG_voltage, self.__ref_voltage =mops_child.update_device_box(device = self.__devices[0], mainWindow = self)     
     
     def initiate_adc_timer(self, period=None,cic=None, mops=None, port=None):
         '''
@@ -88,7 +97,8 @@ class mopshubWindow(QWidget):
         '''  
         self.__default_file = "mopshub_data_"+cic+"_"+port+"_"+mops+".csv"
         self.logger.notice("Preparing an output file [%s]..." % (lib_dir + "/output_data/"+self.__default_file))
-        self.out_file_csv[int(cic)][int(port)][int(mops)] = AnalysisUtils().open_csv_file(outname=self.__default_file[:-4], directory=lib_dir + "/output_data") 
+        self.out_file_csv[int(cic)][int(port)][int(mops)] = AnalysisUtils().open_csv_file(outputname=self.__default_file[:-4],
+                                                                                           directory=lib_dir + "/output_data") 
             
         # Write header to the data
         fieldnames = ['time',"test_tx",'bus_id',"nodeId","adc_ch","index","sub_index","adc_data", "adc_data_converted","reqmsg","requestreg","respmsg","responsereg", "status"]
@@ -126,7 +136,7 @@ class mopshubWindow(QWidget):
         fieldnames = ['Time', 'Channel', "nodeId", "ADCChannel", "ADCData" , "ADCDataConverted"]                
         #cic_file = "mopshub_cic_"+str(c)+"_"+str(b)+".csv"
        # self.logger.notice("Preparing an output file [%s]..." % (lib_dir + "/output_data/"+_cic_file))
-       # self.out_file_csv = AnalysisUtils().open_csv_file(outname=_cic_file[:-4], directory=lib_dir + "output_data") 
+       # self.out_file_csv = AnalysisUtils().open_csv_file(outputname=_cic_file[:-4], directory=lib_dir + "output_data") 
 
         #writer = csv.DictWriter(self.out_file_csv, fieldnames=fieldnames)
         #writer.writeheader()  
@@ -463,16 +473,18 @@ class mopshubWindow(QWidget):
         device_config = "mops"
         adc_channels_num = 33
         self.channelValueBox[int(cic)][int(port)][int(mops)], \
-        self.trendingBox[int(cic)][int(port)][int(mops)],\
-        self.monValueBox[int(cic)][int(port)][int(mops)] ,\
-        self.confValueBox[int(cic)][int(port)][int(mops)], _,\
-        self.statusGraphWidget = self.MOPSChildWindow.device_child_window(deviceWindow,  
-                                                                           device=_device_name,
-                                                                           device_config = device_config,
-                                                                           cic=cic, 
-                                                                           mops=mops, 
-                                                                           port=port, 
-                                                                           mainWindow = self)
+        self.trendingBox[int(cic)][int(port)][int(mops)], \
+        self.monValueBox[int(cic)][int(port)][int(mops)] , \
+        self.progressBar, self._wait_label = self.MOPSChildWindow.device_child_window(childWindow=deviceWindow,  
+                                                                   device=_device_name,
+                                                                   device_config = device_config,
+                                                                   cic=cic, 
+                                                                   mops=mops, 
+                                                                   port=port, 
+                                                                   mopshub_mode = self.__mopshub_mode,
+                                                                   mainWindow = self,
+                                                                   mopshub_communication_mode = self.__mopshub_communication_mode)
+         
         self.DataMonitoring.status_child_window()
         self.graphWidget = self.DataMonitoring.initiate_trending_figure(n_channels=adc_channels_num)    
         self.initiate_adc_timer(period = self.__refresh_rate, cic=cic, mops=mops, port=port)# receives the time in milliseconds
@@ -565,8 +577,8 @@ class mopshubWindow(QWidget):
         if en_button_check:
             self.logger.info(f'Powering ON bus {_true_port_id} on CIC {_cic_id}')
             if self.trim_mode:
-                self.wrapper.write_uhal_mopshub_message(hw =self.__hw, data=[reg6_hex_on,reg6_hex_on,reg6_hex_on,0xa], 
-                                                        reg = ["reg6","reg7","reg8","reg9"], timeout=self.__timeout, out_msg = False)
+                self.wrapper.write_elink_message(hw =self.__hw, data=[reg6_hex_on,reg6_hex_on,reg6_hex_on,0xa], 
+                                                        reg = ["IPb_addr6","IPb_addr7","IPb_addr8","IPb_addr9"], out_msg = False)
             else:
                 self.logger.warning(f'No Trimming Required [Status:{self.trim_mode}]')
             self.update_bus_status_box(cic_id=cic_element, port_id=_true_port_id, on=True)     
@@ -574,8 +586,8 @@ class mopshubWindow(QWidget):
         else:
             self.logger.info(f'Powering OFF bus {_true_port_id} on CIC {_cic_id}')
             if self.trim_mode:
-                self.wrapper.write_uhal_mopshub_message(hw =self.__hw, data=[reg6_hex_off,reg6_hex_off,reg6_hex_off,0xa], 
-                                                        reg = ["reg6","reg7","reg8","reg9"], timeout=self.__timeout, out_msg = False)
+                self.wrapper.write_elink_message(hw =self.__hw, data=[reg6_hex_off,reg6_hex_off,reg6_hex_off,0xa], 
+                                                        reg = ["IPb_addr6","IPb_addr7","IPb_addr8","IPb_addr9"], out_msg = False)
             else:
                 self.logger.warning(f'No Trimming Required [Status:{self.trim_mode}]')
             self.update_bus_status_box(cic_id=cic_element, port_id=_true_port_id, off=True)
@@ -720,28 +732,7 @@ class mopshubWindow(QWidget):
                                      str(respmsg),
                                      str(responsereg), 
                                      status))                                    
-            self.update_mopshub_configuration_values(c,b,m)
             self.update_mopshub_monitoring_values(c,b,m)
-            
-    def update_mopshub_configuration_values(self,c,b,m):
-        '''
-        The function will will send a CAN message to read configuration values using the function read_sdo_can and 
-         update the confValueBox in configuration_values_window.
-        The calling function is initiate_adc_timer.
-        ''' 
-        _dictionary = self.__dictionary_items
-        _conf_indices = list(self.__conf_index)                     
-        a = 0 
-        for i in np.arange(len(_conf_indices)):
-            _subIndexItems = list(AnalysisUtils().get_subindex_yaml(dictionary=_dictionary, index=_conf_indices[i], subindex="subindex_items"))
-            self.set_index(_conf_indices[i])  # set index for later usage
-            for s in np.arange(0, len(_subIndexItems)):
-                self.set_subIndex(_subIndexItems[s])
-                conf_adc_value , _, _, _,_ , _ = self.read_sdo_uhal(c,b,m) #np.random.randint(0,100)
-                #conf_adc_value= np.random.randint(0,100) #
-                self.confValueBox[c][b][m][a].setText(str(conf_adc_value))      
-                a = a + 1    
-                #time.sleep(self.__timeout)
 
     def update_mopshub_monitoring_values(self,c,b,m):
         '''
@@ -772,24 +763,25 @@ class mopshubWindow(QWidget):
         The function is called by the following functions: 
            a) read_adc_channels
            b) read_monitoring_values    
-           c) read_configuration_values
         """
         #try:
         _index = int(self.get_index(), 16)
         _subIndex = int(self.get_subIndex(), 16)
         _nodeId = int(self.get_nodeId(c,b,m))
+            
         data_point, reqmsg, requestreg, respmsg,responsereg , status =  self.wrapper.read_sdo_uhal(hw = self.__hw,
-                                                                                           bus = int(b), 
-                                                                                           nodeId= _nodeId, 
-                                                                                           index = _index, 
-                                                                                           subindex = _subIndex, 
-                                                                                           timeout = self.__timeout,
-                                                                                           out_msg = False)
-                                    
+                                                                                                   bus = int(b), 
+                                                                                                   nodeId= _nodeId, 
+                                                                                                   index = _index, 
+                                                                                                   subindex = _subIndex,
+                                                                                                   seu_test = self.__seu_test,
+                                                                                                   out_msg = True)
+                                                                                                                                        
+                        
         return data_point, reqmsg, requestreg, respmsg,responsereg , status
             
         #except Exception:
-        #    return None
+        #    return None,None,None,None,None,None
                 
     def show_trendWindow(self,c,b,m):
         trend = QMainWindow(self)

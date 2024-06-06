@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<node>
+    <node id="csr" address="0x0" description="ctrl/stat register" fwinfo="endpoint;width=1">
+    <node id="stat" address="0x1"/>
+    </node>
+    <node id="reg"  	address="0x00000000" description="read-write register" fwinfo="endpoint;width=31"/>
+    <node id="regcsr"  	address="0x01000000" description="read-write register" fwinfo="endpoint;width=31"/>
+    <node id="IPb_addr0"  	address="0x12000000" description="read-write register" fwinfo="endpoint;width=31"/>
+    <node id="IPb_addr1"  	address="0x12000001" description="read-write register" fwinfo="endpoint;width=31"/>
+    <node id="IPb_addr2"  	address="0x12000002" description="read-write register" fwinfo="endpoint;width=31"/>
+    <node id="IPb_addr3"  	address="0x12000003" description="read-write register" fwinfo="endpoint;width=31"/>
+    <node id="IPb_addr4"  	address="0x12000004" description="read-write register" fwinfo="endpoint;width=31"/>
+    <node id="IPb_addr5"  	address="0x12000005" description="read-write register" fwinfo="endpoint;width=31"/>
+    <node id="IPb_addr6"  	address="0x12000006" description="read-write register" fwinfo="endpoint;width=31"/>
+    <node id="IPb_addr7"  	address="0x12000007" description="read-write register" fwinfo="endpoint;width=31"/>
+    <node id="IPb_addr8" 	address="0x12000008" description="read-write register" fwinfo="endpoint;width=31"/>
+    <node id="IPb_addr9" 	address="0x12000009" description="read-write register" fwinfo="endpoint;width=31"/>
+    <node id="IPb_addr10" 	address="0x1200000A" description="read-write register" fwinfo="endpoint;width=31"/>
+    <node id="IPb_addr11" 	address="0x1200000B" description="read-write register" fwinfo="endpoint;width=31"/>
+    <node id="ram" address="0x1000" mode="block" size="0x400" description="1kword RAM" fwinfo="endpoint;width=12"/>
+    <node id="pram" address="0x2000" description="1kword peephole RAM" fwinfo="endpoint;width=1">
+    <node id="addr" address="0x0"/>
+    <node id="data" mode="port" size="0x400" address="0x1"/>
+    </node>
+</node>

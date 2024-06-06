@@ -20,16 +20,17 @@ from uhal_wrapper_main   import UHALWrapper
 from logger_main   import Logger
 from mopshubSimulation   import sim_mopshub_main, sim_mops_main   
 
-sm_info = DesignInfo()
-time_now = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
-log_format = '%(log_color)s[%(levelname)s]  - %(name)s -%(message)s'
 
+log_format = '%(log_color)s[%(levelname)s]  - %(name)s -%(message)s'
 log_call = Logger(log_format=log_format, name="SIM Data", console_loglevel=logging.INFO, logger_file=False)
 logger = log_call.setup_main_logger()
 
+timeout = 0.05
+time_now = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
+
 output_dir = rootdir+"/output_dir/"+time_now      
 config_dir = rootdir+"/config_files/" 
-timeout = 0.05
+
 
 def power_control(bus = None, voltage_control = [0x01,0x03,0x0F,0x33,0x3F,0xC3,0xCF,0xF3,0xFF]):
     #power On/off the bus
