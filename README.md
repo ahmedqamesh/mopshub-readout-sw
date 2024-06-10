@@ -1,6 +1,9 @@
-# MOPS-Hub Readout Software
+# About MOPS-Hub Readout Software
 
-The MOPS-Hub Readout Software is a Python-based framework designed to control the MOPS-Hub readout board, facilitating comprehensive crate testing and data aggregation. This software package offers modular functionalities and a user-friendly interface for configuring and communicating with the hardware platform.
+The MOPS-Hub Readout Software is a Python-based framework designed to control the MOPS-Hub readout board, facilitating comprehensive crate testing and data aggregation. 
+
+## Software Structure
+The software package offers modular functionalities and a user-friendly interface for configuring and communicating with the hardware platform.
 
 ![MOPS-Hub Readout](https://github.com/ahmedqamesh/mopshub-sw-kcu102/assets/8536649/7ec0939e-345b-4ca1-ac25-7f7bf3cf5020)
 

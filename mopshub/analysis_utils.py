@@ -40,9 +40,8 @@ class AnalysisUtils(object):
             yaml.dump(loaded, ymlfile, sort_keys=False)#default_flow_style=False
 
 
-    def check_last_row (self, data_frame = None, file_name = None,column = "status"):
+    def check_last_row (self, data_frame = None, file_name = None, column = "status"):
         data_frame_last_row = data_frame.tail(1)
-        
         pattern_exists = any(data_frame_last_row[column].astype(str).str.contains("End of Test"))
         if pattern_exists: 
             logger.notice(f"Noticed a Complete test file named: {file_name}") 
@@ -118,4 +117,168 @@ class AnalysisUtils(object):
         ip_list=[str(ip) for ip in ips]
         return ip_list
 
+ 
+    def get_data_for_day_hour(self, data_frame = None, target_day = None, target_hour = None, device = None):
+         # Convert timestamp column to datetime format
+        if device == "fpga_card":
+            time_format = '%H:%M:%S'
+            time_header_format = "Times"
+        else:
+            time_format = '%Y-%m-%d_%H:%M:%S'
+            time_header_format = "TimeStamp"
+        
+        # Make a copy of the DataFrame to avoid SettingWithCopyWarning
+        data_frame = data_frame.copy()
     
+        data_frame['TimeStamp'] = pd.to_datetime(data_frame[time_header_format], format=time_format)
+        
+        #Extract day and hour from timestamp
+        data_frame['day'] = data_frame['TimeStamp'].dt.date
+        data_frame['hour'] = data_frame['TimeStamp'].dt.hour
+        return data_frame
+   
+    def getDay(self,TimeStamps =None, device = None): 
+        pos = 0
+        day_pos = 0
+        day = ""
+        #day = TimeStamps[0].split('_')[0]# Extracting the day part assuming the format is "YYYY-MM-DD_HH:MM:SS"
+        if device == "fpga_card":
+            day = 1
+            pos = 1
+        else:
+            while len(TimeStamps[0]) != pos:
+                day += str(TimeStamps[0][pos])
+                pos += 1
+            
+        last_day = None
+        unique_days = []
+        days = [[""]*1 for i in range(len(TimeStamps))]
+        for TimeStamp in TimeStamps:
+            if device == "fpga_card":
+                TimeStamp = str(TimeStamp) 
+            else:
+                TimeStamp = TimeStamp            
+            current_stamp = TimeStamp[0:10]
+            days[day_pos] =current_stamp#11+12 for hours 
+            if current_stamp != last_day:
+    
+                unique_days.append(current_stamp)
+                last_day = current_stamp         
+        #day_pos += 1
+        return day, unique_days
+
+    def count_consecutive_repeats(self, timestamps=None):
+        if not timestamps:
+            return []
+    
+        consecutive_counts = []
+    
+        current_timestamp = timestamps[0]
+        count = 1
+        index = 0
+        for i in range(1, len(timestamps)):
+            if timestamps[i] == current_timestamp:
+                count += 1
+            else:
+                consecutive_counts.append((index, count))
+                current_timestamp = timestamps[i]
+                count = 1
+                index = index+1
+        
+        # Update the count for the last timestamp
+        consecutive_counts.append((index, count))#instead of current_timestamp
+        
+        repeats = [counts[1] for counts in consecutive_counts]
+        consecutive_repeats = [counts[0] for counts in consecutive_counts]
+        new_array = [entry[0] for entry in consecutive_counts for _ in range(entry[1])]
+        return consecutive_repeats, repeats, new_array
+
+
+    def getHours(self,TimeStamps, min_scale =None, device = None):
+        hour = 0
+        unique_hours = []
+        last_hour = None
+        hours = [[""]*1 for i in range(len(TimeStamps))]
+        for TimeStamp in TimeStamps:
+            if device == "cic_card":
+                if min_scale == "min_scale" : hours[hour] = TimeStamp[14] + TimeStamp[15] #14+15 for min 
+                else: hours[hour] = TimeStamp[11] + TimeStamp[12] #11+12 for hours
+            
+            if device == "power_card":
+                if min_scale == "min_scale" : hours[hour] = TimeStamp[14] + TimeStamp[15] #14+15 for min 
+                else: 
+                    #try:
+                    current_stamp = TimeStamp[11:13]
+                    hours[hour] =current_stamp#11+12 for hours  
+                    if current_stamp != last_hour:
+                        unique_hours.append(int(current_stamp))
+                        last_hour = current_stamp   
+                    #except:
+                    #    pass
+            if device == "fpga_card":
+                #hours[hour] = TimeStamp[0] + TimeStamp[1] #11+12 for hours
+                TimeStamp = str(TimeStamp)            
+                current_stamp = TimeStamp[11] + TimeStamp[12]
+                hours[hour] =current_stamp#11+12 for hours  
+                if current_stamp != last_hour:
+                    unique_hours.append(int(current_stamp))
+                    last_hour = current_stamp  
+                                    
+            else:
+                if min_scale == "min_scale" : hours[hour] = TimeStamp[14] + TimeStamp[15] #14+15 for min 
+                else: 
+                    #try:
+                    current_stamp = TimeStamp[11:13]
+                    hours[hour] =current_stamp#11+12 for hours  
+                    if current_stamp != last_hour:
+                        unique_hours.append(int(current_stamp))
+                        last_hour = current_stamp   
+                    #except:
+                    #    pass
+            hour += 1
+        return hours, unique_hours
+    
+
+
+    def get_hourly_average_value(self,data_frame = None, column = None,unique_days = None, device = None,n_points =1 ):
+        hourlyAverageValues = []
+        hourlySTDValues = []
+        data_for_day_hour = self.get_data_for_day_hour(data_frame = data_frame, device = device)
+        for target_day in unique_days:
+            condition = (data_for_day_hour['day'] == pd.to_datetime(target_day))
+            data = data_for_day_hour[condition]
+            data = data.apply(pd.to_numeric, errors='coerce')
+            interval = pd.cut(data['hour'], bins=n_points)
+            hourly_avg = data.groupby('hour').agg('mean')
+            hourly_std = data.groupby('hour').agg('std')
+            #hourly_avg = data.groupby(['hour', interval]).agg('mean')
+            #hourly_std = data.groupby(['hour', interval]).agg('std')
+            
+            for hour, avg_value in hourly_avg.iterrows():
+                hourlyAverageValues = np.append(hourlyAverageValues, avg_value[column])
+            for hour, std_value in hourly_std.iterrows():
+                hourlySTDValues = np.append(hourlySTDValues, std_value[column])        
+        return hourlyAverageValues, hourlySTDValues
+    
+
+    def getHourlyAverageValue(self,hours =None, data =None, min_scale =None, unique_hours = None,unique_days = None):
+        if min_scale == "min_scale" :dataSum = [np.zeros(0) for i in range(60)] #24 if hours and 60 if min 
+        else: dataSum = [np.zeros(0) for i in range(len(unique_hours))] #24 if hours and 60 if min 
+        
+        pos = 0
+        for h in hours:
+            try:
+                dataSum[int(h)] = np.append(dataSum[int(h)],float(data[pos]))
+                pos += 1
+            except: 
+                pass
+                #logger.warning("No real Number")
+        hourlyAverageValues = [[""]*1 for i in range(len(dataSum))]
+        
+        for hour in range(len(dataSum)): 
+            if dataSum[hour].any()>0:
+                hourlyAverageValues[hour] = np.average(dataSum[hour])
+            else:  
+                hourlyAverageValues[hour] = None
+        return hourlyAverageValues
+             

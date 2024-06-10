@@ -109,16 +109,16 @@ proc update_ila_cores {} {
 	
        set ila_instance hw_ila_1
        set probe_name status_heartbeat	
-       run_hw_ila [get_hw_ilas -of_objects [get_hw_devices xc7a200t_0] -filter {CELL_NAME=~"mopshub_board_v2_i/ila_0"}]
-       wait_on_hw_ila [get_hw_ilas -of_objects [get_hw_devices xc7a200t_0] -filter {CELL_NAME=~"mopshub_board_v2_i/ila_0"}]
-       display_hw_ila_data [upload_hw_ila_data [get_hw_ilas -of_objects [get_hw_devices xc7a200t_0] -filter {CELL_NAME=~"mopshub_board_v2_i/ila_0"}]]
+       run_hw_ila [get_hw_ilas -of_objects [get_hw_devices xc7a200t_0] -filter {CELL_NAME=~"mopshub_board_v2_i/ila_1"}]
+       wait_on_hw_ila [get_hw_ilas -of_objects [get_hw_devices xc7a200t_0] -filter {CELL_NAME=~"mopshub_board_v2_i/ila_1"}]
+       display_hw_ila_data [upload_hw_ila_data [get_hw_ilas -of_objects [get_hw_devices xc7a200t_0] -filter {CELL_NAME=~"mopshub_board_v2_i/ila_1"}]]
        display_hw_ila_data
 	
        set ila_instance hw_ila_2
        set probe_name tmr_out	
-       run_hw_ila [get_hw_ilas -of_objects [get_hw_devices xc7a200t_0] -filter {CELL_NAME=~"mopshub_board_v2_i/ila_1"}]
-       wait_on_hw_ila [get_hw_ilas -of_objects [get_hw_devices xc7a200t_0] -filter {CELL_NAME=~"mopshub_board_v2_i/ila_1"}]
-       display_hw_ila_data [upload_hw_ila_data [get_hw_ilas -of_objects [get_hw_devices xc7a200t_0] -filter {CELL_NAME=~"mopshub_board_v2_i/ila_1"}]]
+       run_hw_ila [get_hw_ilas -of_objects [get_hw_devices xc7a200t_0] -filter {CELL_NAME=~"mopshub_board_v2_i/ila_2"}]
+       wait_on_hw_ila [get_hw_ilas -of_objects [get_hw_devices xc7a200t_0] -filter {CELL_NAME=~"mopshub_board_v2_i/ila_2"}]
+       display_hw_ila_data [upload_hw_ila_data [get_hw_ilas -of_objects [get_hw_devices xc7a200t_0] -filter {CELL_NAME=~"mopshub_board_v2_i/ila_2"}]]
        display_hw_ila_data
        
        #specialPrint "REPORT"  "OPEN $::full_ila_out_file_0"
@@ -153,7 +153,7 @@ proc read_xadc {end_time} {
 	set end 0
 	set systemTime 0
 	# Check if the file exists
-	while {1} {
+	while {[checkForStopFlag]} {
 		#the number 1000 indicates the loop will be run every second (1000 ms).
 		#If you need a higher or lower frequency, adjust it.
 		after 1000
@@ -178,12 +178,12 @@ proc read_xadc {end_time} {
 		flush stdout
 		incr end
                 # Check if the time limit has been reached (if you want to keep a time constraint)
-                if {$end_time > 0 && $end >= $end_time} {
-                    break
-                }		
+                #if {$end_time > 0 && $end >= $end_time} {
+                #    break
+                #}		
 	}
 	# Write the final "END" line to the CSV file
-	puts $fileId0 "0,0,0,0,END"
+	puts $fileId0 "0,0,0,0,End of Test"
 	
 	# Close the file
 	close $fileId0
@@ -250,7 +250,7 @@ proc read_data_campaign {end_time} {
 		}
 	}
         # Write the final "END" line to the CSV file
-	puts $fileId1 "0,0,0,0,END"
+	puts $fileId1 "0,0,0,0,End of Test"
 	
 	# Close the file
 	close $fileId1
@@ -293,7 +293,7 @@ proc check_current_project {} {
 #=======================Open the device=======================================================================
 #check_current_project
 
-#disconnect_hw_server
+disconnect_hw_server
 open_hw_manager
 connect_hw_server -allow_non_jtag
 update_compile_order -fileset sources_1
@@ -307,16 +307,16 @@ specialPrint "INFO" "Opening the Target Device$target_device"
 #open_hw_target {localhost:3121/xilinx_tcf/Digilent/210299B38601}
 #open_hw_target {localhost:3121/xilinx_tcf/Digilent/210299B38601}
 refresh_hw_device [get_hw_devices xc7a200t_0]
-display_hw_ila_data [ get_hw_ila_data hw_ila_data_1 -of_objects [get_hw_ilas -of_objects [get_hw_devices xc7a200t_0] -filter {CELL_NAME=~"mopshub_board_v2_i/ila_0"}]]
-display_hw_ila_data [ get_hw_ila_data hw_ila_data_2 -of_objects [get_hw_ilas -of_objects [get_hw_devices xc7a200t_0] -filter {CELL_NAME=~"mopshub_board_v2_i/ila_1"}]]
+#display_hw_ila_data [ get_hw_ila_data hw_ila_data_1 -of_objects [get_hw_ilas -of_objects [get_hw_devices xc7a200t_0] -filter {CELL_NAME=~"mopshub_board_v2_i/ila_1"}]]
+#display_hw_ila_data [ get_hw_ila_data hw_ila_data_2 -of_objects [get_hw_ilas -of_objects [get_hw_devices xc7a200t_0] -filter {CELL_NAME=~"mopshub_board_v2_i/ila_2"}]]
 
 
 #=======================Read XADC data=======================================================================
 read_xadc 2
 #=======================Read Campaign data=======================================================================
-set ila_out_data_0 [upload_hw_ila_data hw_ila_1]
-set ila_out_data_1 [upload_hw_ila_data hw_ila_2]
-read_data_campaign  100
+#set ila_out_data_0 [upload_hw_ila_data hw_ila_1]
+#set ila_out_data_1 [upload_hw_ila_data hw_ila_2]
+#read_data_campaign  100
 #=======================Read ILA data=======================================================================
 update_ila_cores
 
