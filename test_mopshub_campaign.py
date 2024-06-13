@@ -183,8 +183,7 @@ def read_mopshub_mopshubreadout_transmission(mopshub_server= None, mopshub_reado
                      str(None), 
                      str(None),
                      str(None), 
-                     "End of Test"))  
-                        
+                     "End of Test"))              
         logger.notice("Debug data are saved to %s [%s - %s - %s ]" % (output_dir+"_debug",mopshub_uart_outname,mopshub_readout_uart_outputname,mopshub_uhal_outputname)) 
 
 def flush_mopshub_fifo():

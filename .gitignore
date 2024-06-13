@@ -2,6 +2,10 @@
 /log/*
 !/output_dir/*.pdf
 
+# Remove the contents in the /tcl_scripts/output_dir/
+/tcl_scripts/output_dir/*
+!/tcl_scripts/
+
 # Mr Developer
 .mr.developer.cfg
 .project
