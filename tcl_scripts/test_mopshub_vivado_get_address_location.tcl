@@ -11,6 +11,7 @@ set root_dir [file dirname $script_path]
 # Set the root directory as the current working directory
 cd $root_dir
 set project_name "mopshub_board_v3TMR"
+
 set vivado_project_path     "/home/dcs/git/mopshub/vivado/mopshub_v3TMR"
 set bitstream_file 	    "$vivado_project_path/$project_name/$project_name.runs/impl_1/${project_name}_wrapper.bit"
 set ila_probe_file 	    "$vivado_project_path/$project_name/$project_name.runs/impl_1/${project_name}_wrapper.ltx"
