@@ -30,13 +30,11 @@ Clone the repository to download the source code:
 
 ```
  git clone git@github.com:ahmedqamesh/mopshub-sw-kcu102.git
-
 ```
 Ensure the MOPS-Hub readout board is connected and the required software dependencies are installed. To test the setup, run the following command in the project directory:
 
 ```
 python test_mopshub_uhal.py
-
 ```
 ### Configuration and Usage
 Detailed instructions for configuration and usage are available in the documentation included in the project repository.
