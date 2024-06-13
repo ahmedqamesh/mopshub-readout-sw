@@ -11,6 +11,7 @@ cd $root_dir
 set project_name "mopshub_board_v2TMR"
 set vivado_project_path     "/home/dcs/git/mopshub/Vivado/${project_name}"
 set expectedProjectPath     "$vivado_project_path/$project_name/$project_name.xpr"
+set ila_probe_file 	    "$vivado_project_path/$project_name/$project_name.runs/impl_1/${project_name}_wrapper.ltx"
 set bitstream_file 	    "$vivado_project_path/$project_name/$project_name.runs/impl_1/${project_name}_wrapper.bit"
 set bitstream_golden_file   "$vivado_project_path/$project_name/$project_name.runs/${project_name}_wrapper_golden.bit"
 set bitstream_feedback_file "$vivado_project_path/$project_name/$project_name.runs/${project_name}_wrapper_feedback.bit"

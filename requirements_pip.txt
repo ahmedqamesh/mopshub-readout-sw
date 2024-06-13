@@ -25,6 +25,13 @@ dill
 edx-opaque-keys
 entrypoints
 enum34
+bs4
+mpldatacursor
+dash
+keyboard
+dash
+dash_bootstrap_components
+networkx
 folium
 gnupg
 #http-parser

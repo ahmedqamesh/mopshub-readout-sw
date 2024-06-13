@@ -4,7 +4,7 @@ set verbose off
 # Get the current time in the desired format
 set time_now [clock format [clock seconds] -format "%Y-%m-%d_%H:%M:%S"]
 set time_start [clock clicks -millisec]
-set project_name "mopshub_board_v2TMR"
+set project_name "mopshub_board_v3TMR"
 set vivado_project_path "/home/dcs/git/mopshub/Vivado/$project_name"
 set expectedProjectPath "$vivado_project_path/$project_name/$project_name.xpr"
 set ila_data "$vivado_project_path/$project_name/$project_name.hw/backup/hw_ila_data_1.ila"

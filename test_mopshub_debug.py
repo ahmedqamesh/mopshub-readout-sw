@@ -19,7 +19,6 @@ from analysis_utils      import AnalysisUtils
 from analysis            import Analysis
 from design_info         import DesignInfo
 from mopshubGUI          import design_info_gui
-from uhal_wrapper_main   import UHALWrapper
 from serial_wrapper_main import SerialServer
 from logger_main   import Logger
 import logging
