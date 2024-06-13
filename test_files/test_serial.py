@@ -6,7 +6,7 @@ import time
 def read_sem():
     bitrate = 115200#9600
     #Digilent_Digilent_USB_Device_210319A279BE
-    with serial.Serial('/dev/ttyUSB2', parity=serial.PARITY_NONE,baudrate= bitrate, timeout=1
+    with serial.Serial('/dev/ttyUSB1', parity=serial.PARITY_NONE,baudrate= bitrate, timeout=1
                        , bytesize=serial.EIGHTBITS,
                        stopbits=serial.STOPBITS_ONE) as ser:
         while True:

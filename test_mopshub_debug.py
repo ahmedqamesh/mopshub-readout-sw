@@ -42,6 +42,7 @@ def debug_mopshub_uart(server =None, dut = "DUT",read_sm = ["0","1","2","3","4",
         # Read from Uart
         time.sleep(timeout)
         Byte = server.rx_data() #read one byte
+        #print(Byte.hex())
         # print info
         return_states = np.append(return_states,int(Byte.hex(),16))
         DesignInfo().get_sm_info(dut = dut,sm_id = int(sm_id,16), return_state = Byte)
@@ -133,7 +134,7 @@ def read_mopshub_uart_debug_channels(server = None):
     try:
         while True:
                 i = i+1
-                mopshub_return_states = server.debug_mopshub_uart(read_sm = ["0","1","2","3","4","5","6","7","8","9","A","B","C"])
+                mopshub_return_states = debug_mopshub_uart(server = server, read_sm = ["0","1","2","3","4","5","6","7","8","9","A","B","C"])
                 ts = time.time()
                 file_time_now = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
                 elapsedtime = ts - monitoringTime      
@@ -164,9 +165,9 @@ def read_mopshub_uart_debug_channels(server = None):
     
 #FTDI_FT232R_USB_UART_AU05XKFW
 if __name__ == '__main__':
-    #server = SerialServer(port="/dev/ttyUSB0", baudrate=115200,device =None)#"FT232R USB UART")
+    #server = SerialServer(port="/dev/ttyUSB0", baudrate=115200,device =None)#"FT232R USB UART")11.53846
     mopshub_server = SerialServer(baudrate=115200,device = "FT232R USB UART")
-    mopshub_readout_server = SerialServer(baudrate=115200,device = "CP2108 Interface 2")#"FT232R USB UART")
+    mopshub_readout_server = SerialServer(baudrate=115200,device = "CP2108 Interface 2")
     mopshub_server.list_available_ports(msg = True)
 
     verilog_files = ["spi_control_sm_fsm",
@@ -178,13 +179,13 @@ if __name__ == '__main__':
                     "elink_interface_rec_sm_fsm"]
 
     #Updating the yaml files with SM information
-    #DesignInfo().update_design_info(file_path = rootdir[:-18]+"/mopshub/mopshub_lib/hdl/", verilog_files = verilog_files)
+    DesignInfo().update_design_info(file_path = rootdir[:-18]+"/mopshub/mopshub_lib/hdl/", verilog_files = verilog_files)
     
     #Test Uart
-    debug_mopshub_uart(mopshub_server, read_sm = ["0","1","2","3","4","5","6","7","8","9","A","B","C"])
-    #mopshub_readout_server.debug_mopshub_uart(read_sm = ["0","1","2","3","4","5","6","7","8","9","A","B","C"])
+    #debug_mopshub_uart(mopshub_readout_server, read_sm = ["0","1","2","3","4","5","6","7","8","9","A","B","C"])
+    #debug_mopshub_uart(mopshub_server, read_sm = ["0","1","2","3","4","5","6","7","8","9","A","B","C"])
     #Loop Uart
-    #read_mopshub_uart_debug_channels(server = mopshub_server)
+    read_mopshub_uart_debug_channels(server = mopshub_server)
     #read_mopshub_mopshubreadout_uartcombined(mopshub_server= mopshub_server, mopshub_readout_server = mopshub_readout_server)
     
     

@@ -82,7 +82,7 @@ class SerialServer(serial.Serial):
         temp = list(list_ports.grep(vid_pid))
         ports = []
         if(len(temp) == 0):
-            self.logger.error('No matching USB device (' + colored.blue(vid_pid) + ') found!. Please check if Arty board is connected.')
+            self.logger.error('No matching USB device (' + colored.blue(vid_pid) + ') found!. Please check if the board is connected.')
         else:
             #self.logger.status('Found {:d} possible USB deivces'.format(len(temp)))
             for n in range(len(temp)):

@@ -63,8 +63,10 @@ def calculate_HIT_parameters(segma_litrature =None, pp3_fluence = None,n_bits = 
     return seu_time_hr
 
     
-def plot_HIT_parameters(data_name=None, file_name=None, ylim=4000, text_enable=True,PdfPages =None):
-    data_frame = pd.read_csv(data_dir + data_name + "/LIBC HIT Version " + file_name + ".txt", delimiter='\s+', skiprows=1, header=None)
+def plot_HIT_parameters(file_path=None, ylim=4000, text_enable=True,PdfPages =None):
+    data_frame = pd.read_csv(file_path, delimiter='\s+', skiprows=1, header=None)
+    file_name = os.path.basename(file_path)
+    file_directory = os.path.dirname(file_path)
     data_frame.columns = ['E', 'E_MeV_u'] + [f'FWHM_{i}' for i in range(0, 6)] + [f'I_{i}' for i in range(0, 15)]     
     data_frame = AnalysisUtils().check_last_row(data_frame = data_frame,file_name = file_name,column = f'I_0')
     logger.info("Plot Beam Intensities data at HIT")
@@ -95,7 +97,7 @@ def plot_HIT_parameters(data_name=None, file_name=None, ylim=4000, text_enable=T
     if text_enable: ax1.set_title("Beam Intensities at HIT (proton beam)", fontsize=text_font)
     plt.tight_layout()
     #plt.yscale('log')
-    plt.savefig(output_dir +data_name + "/9.LIBC HIT Version " + file_name + "_Intensity.pdf", bbox_inches='tight')  
+    plt.savefig(file_path[:-4]+"_Intensity.pdf", bbox_inches='tight')  
     
     ax1.set_title("Beam Intensities at HIT (proton beam)")
     plt.tight_layout()
@@ -120,7 +122,7 @@ def plot_HIT_parameters(data_name=None, file_name=None, ylim=4000, text_enable=T
     #ax2.set_xlim([0, 260])
     if text_enable: ax2.set_title("FWHM for 255 Energies at HIT (proton beam)")  
     plt.tight_layout()
-    plt.savefig(output_dir+data_name + "/9.LIBC HIT Version " + file_name + "_FWHM.pdf", bbox_inches='tight')
+    plt.savefig(file_path[:-4]+"_FWHM.pdf", bbox_inches='tight')
     ax2.set_title("FWHM for 255 Energies at HIT (proton beam)")
        
     plt.tight_layout()
@@ -150,8 +152,8 @@ def plot_HIT_parameters(data_name=None, file_name=None, ylim=4000, text_enable=T
     if text_enable: ax3.set_title("Time Needed for N SEUs at different intensities (proton beam)")  
     plt.tight_layout()
     plt.xscale('log')
-    plt.savefig(output_dir +data_name + "/9.LIBC HIT Version " + file_name + "_seu_time_intensity.pdf", bbox_inches='tight')
-    logger.success("Saving information to "+output_dir+data_name + "/9.LIBC HIT Version ")   
+    plt.savefig(file_path[:-4]+"_seu_time_intensity.pdf", bbox_inches='tight')
+    logger.success("Saving information to "+file_directory)   
     ax3.set_title("Time Needed for N SEUs at different intensities (proton beam)")
     plt.tight_layout()  
     PdfPages.savefig()
@@ -165,8 +167,8 @@ if __name__ == '__main__':
     for t in basic_tests:
         seu_time_hr = calculate_HIT_parameters(segma_litrature =6.99e-15, pp3_fluence = 2e-7,n_bits = 3e+3,n_seu = 20)
         logging.info("Plot HIT-libc_data", t)
-        plot_HIT_parameters(data_name="HIT_libc_data",
-                            file_name=t,
+        file_path = data_dir + "HIT_libc_data/LIBC HIT Version " + t + ".txt"
+        plot_HIT_parameters(file_path=file_path,
                             PdfPages = PdfPages,
                             text_enable=False)
         

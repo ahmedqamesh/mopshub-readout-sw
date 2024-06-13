@@ -111,8 +111,8 @@ state_machines:
         '0': ST_bus_loop
         '1': ST_reset_loop
         '2': ST_reset
-        '3': ST_Done
-        '4': ST_waittoact
+        '3': ST_GO_IDLE
+        '4': ST_IDLE
         '5': ST_read_irq
         '6': canbus1
         '7': donebus1
@@ -183,7 +183,7 @@ state_machines:
       sm_name: osc_sm
       file_name: osc_trim_sm_fsm
       sm_subindex_items:
-        '0': ST_waittoact
+        '0': ST_IDLE
         '1': ST_reset
         '2': ST_Start_Cnt
         '3': ST_Break_Loop
@@ -227,7 +227,7 @@ state_machines:
       sm_name: elink_tra_sm
       file_name: elink_interface_tra_sm_fsm
       sm_subindex_items:
-        '0': ST_waittoact
+        '0': ST_IDLE
         '1': ST_reset
         '2': store_WB0
         '3': ST_wait_can_rq
@@ -282,7 +282,7 @@ state_machines:
       sm_name: elink_rec_sm
       file_name: elink_interface_rec_sm_fsm
       sm_subindex_items:
-        '0': ST_waittoact
+        '0': ST_IDLE
         '1': ST_reset
         '2': store_RB2
         '3': store_RB3
@@ -339,7 +339,7 @@ state_machines:
       sm_name: elink_spi_sm
       file_name: spi_control_sm_fsm
       sm_subindex_items:
-        '0': ST_waittoact
+        '0': ST_IDLE
         '1': ST_reset
         '2': start
         '3': endinit1

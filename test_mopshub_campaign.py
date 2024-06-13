@@ -39,6 +39,21 @@ def exit_handler():
     logger.warning("Closing the program.") 
     sys.exit(0)
 
+
+def debug_mopshub_uart(server =None, dut = "DUT",read_sm = ["0","1","2","3","4","5","6","7"]):   
+    return_states = []
+    for sm_id in read_sm:
+        #Write to Uart 
+        server.tx_data(bytearray(bytes.fromhex("0"+sm_id)))
+        # Read from Uart
+        time.sleep(timeout)
+        Byte = server.rx_data() #read one byte
+        # print info
+        return_states = np.append(return_states,int(Byte.hex(),16))
+        DesignInfo().get_sm_info(dut = dut,sm_id = int(sm_id,16), return_state = Byte)
+        time.sleep(timeout)
+    return return_states
+
 def read_mopshub_mopshubreadout_transmission(mopshub_server= None, mopshub_readout_server = None,nodeIds = [0],bus_range = [0],hw=None):
     mopshub_uart_outname            = time_now + "_mopshub_top_16bus_debug"
     mopshub_readout_uart_outputname = time_now + "_mopshub_readout_16bus_debug"
@@ -69,8 +84,8 @@ def read_mopshub_mopshubreadout_transmission(mopshub_server= None, mopshub_reado
     try:
         while True:
                 i = i+1
-                mopshub_return_states = mopshub_server.debug_mopshub_uart(read_sm = ["0","1","2","3","4","5","6","7","8","9","A","B","C"],dut = "MOPS-Hub")
-                mopshub_readout_return_states = mopshub_readout_server.debug_mopshub_uart(read_sm = ["0","1","2","3","4","5","6","7","8","9","A","B","C"],dut = "Readout")
+                mopshub_return_states = debug_mopshub_uart(server = mopshub_server, read_sm = ["0","1","2","3","4","5","6","7","8","9","A","B","C"],dut = "MOPS-Hub")
+                mopshub_readout_return_states = debug_mopshub_uart(server= mopshub_readout_server, read_sm = ["0","1","2","3","4","5","6","7","8","9","A","B","C"],dut = "Readout")
                 for bus in bus_range:
                     for node in nodeIds:    
                         # Read ADC channels
@@ -82,7 +97,6 @@ def read_mopshub_mopshubreadout_transmission(mopshub_server= None, mopshub_reado
                                                                                                                nodeId= node, 
                                                                                                                index = int(_adc_index, 16), 
                                                                                                                subindex = subindex, 
-                                                                                                               timeout = timeout,
                                                                                                                seu_test = True,
                                                                                                                out_msg = False)                   
                             if data_point is not None:
@@ -176,24 +190,27 @@ def read_mopshub_mopshubreadout_transmission(mopshub_server= None, mopshub_reado
 def flush_mopshub_fifo():
     #Flush The FIFO
     logger.info('Flush The FIFO...')
-    wrapper.write_uhal_message(hw = hw, 
-                                      node =wrapper.get_ual_node(hw =hw, registerName = "reg11"), 
-                                      registerName="reg11", 
-                                      data = 0x1, 
-                                      timeout=timeout)  
+    wrapper.write_uhal_message(hw = hw_interface, 
+                                      node =hw_interface.getNode("IPb_addr11"), 
+                                      registerName="IPb_addr11", 
+                                      data = 0x1) 
 
 if __name__ == '__main__':
     # PART 1: Argument parsing
     wrapper = UHALWrapper(load_config = True)
     mopshub_server = SerialServer(baudrate=115200,device = "FT232R USB UART")
     mopshub_readout_server = SerialServer(baudrate=115200,device = "CP2108 Interface 2")#"FT232R USB UART")
-    mopshub_server.avail_ports(msg = True)
+    mopshub_server.list_available_ports(msg = True)
 
     # PART 2: Creating the HwInterface
-    hw = wrapper.config_uhal_hardware()
+    hw_interface = wrapper.config_ipbus_hardware()
     nodeIds = [0]
     bus_range = [0]#,1,2,3,4,5,6]
     flush_mopshub_fifo()
-    read_mopshub_mopshubreadout_transmission(mopshub_server= mopshub_server, mopshub_readout_server = mopshub_readout_server,bus_range = bus_range,nodeIds = nodeIds,hw = hw)
+    read_mopshub_mopshubreadout_transmission(mopshub_server= mopshub_server, 
+                                             mopshub_readout_server = mopshub_readout_server,
+                                             bus_range = bus_range,
+                                             nodeIds = nodeIds,
+                                             hw = hw_interface)
         
     
