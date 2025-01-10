@@ -32,11 +32,11 @@ from matplotlib.patches import Rectangle
 from matplotlib.collections import PatchCollection
 from matplotlib.colors import Normalize
 from matplotlib.cm import ScalarMappable
-from .analysis_utils      import AnalysisUtils
+from analysis_utils      import AnalysisUtils
 import matplotlib.image as image
 from scipy import interpolate
-from .logger_main   import Logger
-from .plot_style import *
+from logger_main   import Logger
+from plot_style import *
 import logging
 from collections import Counter
 import seaborn as sns
@@ -48,7 +48,57 @@ class Plotting(object):
 
     def __init__(self):
         pass
+ 
     
+    def plot_run_info(self,x = None, y = None, data_dir =None, PdfPages = None):
+        fig1, ax1 = plt.subplots()
+        # Interpolation
+        interp_func = interpolate.interp1d(x, y, kind='cubic')
+       # spl = interpolate.splrep(x, y, s=3)  # s=0 means no smoothing
+        time_interp = np.linspace(x.min(), x.max(), 500)
+        fluence_interp = interp_func(time_interp)
+    
+        ax1.errorbar(x,y, fmt='o' , markerfacecolor='black', markeredgecolor='black')
+        ax1.plot(x , y,'-',label='Accumulated fluence')     
+        bbox_props = dict(boxstyle="round,pad=0.3", facecolor="gray", alpha = 0.1)
+      
+        annotation = ax1.annotate(
+                f'Maximum Fluence: {max(y):.2e} [Proton/Cm$^2$]',
+                xy=(40, 0),
+                xytext=(30, 4e12),  # Position the text slightly above the point
+                size=7,
+                #arrowprops=dict(facecolor='black', arrowstyle='-|>', lw=1.5, shrinkA=0, shrinkB=5),
+                bbox=bbox_props  # Add the box around the text
+                
+            )
+         # Create a FancyBboxPatch around the annotation text
+        text_bbox = annotation.get_bbox_patch()
+        text_bbox.set_boxstyle("round,pad=0.3")
+    
+        #ax1.plot(time_interp, fluence_interp, '-', label='Interpolated Line')     
+        ax1.grid(True)
+        ax1.legend(loc="upper left")
+    
+        ax1.set_ylabel("Accumulated Fluence [Proton/Cm$^2$]")
+        ax1.set_xlabel("Time [Mins]")
+        ax1.autoscale(enable=True, axis='x', tight=None)
+        #plt.ylim(min_lim - 5, max_lim + 5)
+        #if text_enable: ax1.set_title("Fluence vs Time ")
+        #ax1.set_xscale('log')
+        plt.tight_layout()
+        plt.tick_params(axis='both', which='both', direction="in", bottom=True, top=True)
+        plt.savefig(f"{data_dir}proton_irradiation_1/proton_irradiation_run_info.pdf", bbox_inches='tight')
+        logger.info("Plot Run Info")
+        ax1.set_title("Fluence vs Time ")
+        plt.tight_layout()
+        PdfPages.savefig()
+        plt.clf()
+        
+        plt.close(fig1)      
+        return None
+
+    
+        
     def calculate_dose(self, period):
         """
         Calculate the dose for each period based on the dose rate.

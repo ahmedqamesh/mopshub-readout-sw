@@ -1,3 +1,11 @@
+########################################################
+"""
+    This file is part of the MOPS-Hub project.
+    Author: Ahmed Qamesh (University of Wuppertal)
+    email: ahmed.qamesh@cern.ch  
+    Date: 01.05.2023
+"""
+########################################################
 #pip install wavedrom
 #pip install svglib reportlab
 import wavedrom
@@ -131,7 +139,7 @@ write_can_process = """
      {"name": "CANAKari address"  , "wave": "==..=..=..=..=..=..=..=..=..=,", "data": ["","E", "C", "A", "9", "8", "7", "D", "E", "12"]},
      {"name": "Register Value", "wave": "==..5..............=..=..=..=,", "data": ["", "9C", "data_tra_downlink", "8008", "9C", "8070"]},
      {"name": "write_n", "wave": "10..........................1"},
-     {"name": "cs ", "wave": "10.10.10.10.10.10.10.10.10.10"}
+     {"name": "cs ", "wave": "01.01.01.01.01.01.01.01.01.0."}
     ],
     {},
     ["CAN State Machine",
@@ -159,7 +167,7 @@ read_can_process = """
      {"name": "CANAKari address"  , "wave": "==..=..=..=..=..=..=..=,", "data": ["","5", "3", "2", "1", "0", "E", "12"]},
      {"name": "Register Value", "wave": "=3..............=..=..=,", "data": ["", "data_rec_uplink", "9C", "8070"]},
      {"name": "read_n", "wave": "10....................1"},
-     {"name": "cs ", "wave": "10.10.10.10.10.10.10.1."}
+     {"name": "cs ", "wave": "01.01.01.01.01.01.01.0."}
     ],
     {},
     ["CAN State Machine",

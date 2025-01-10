@@ -1,3 +1,10 @@
+########################################################
+   #  Dictionary for MOPS-Hub FSMs
+   # Author: Ahmed Qamesh (University of Wuppertal)
+   # email: ahmed.qamesh@cern.ch  
+   # Date: 01.02.2020
+########################################################
+
 state_machines:
   sm_items:
     '0':

@@ -1,4 +1,4 @@
 CAN_Interfaces: socketcan
 ethernet:
-  uri: "ipbusudp-2.0://132.195.104.25:50001"
+  uri: "ipbusudp-2.0://192.168.200.16:50001"
   addressFilePath: "config_files/ipbus_mopshub_readout.xml"

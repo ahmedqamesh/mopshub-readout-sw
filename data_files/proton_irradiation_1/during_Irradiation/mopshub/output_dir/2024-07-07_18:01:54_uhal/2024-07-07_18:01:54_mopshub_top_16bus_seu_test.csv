@@ -1,0 +1,2 @@
+Times,elabsed_time,test_tx,bus_id,nodeId,adc_ch,index,sub_index,adc_data,adc_data_converted,reqmsg,requestreg,respmsg,responsereg,status
+2024-07-07_18:01:54,14.33998966217041,1,None,None,None,None,None,None,None,None,None,None,None,End of Test

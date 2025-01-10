@@ -1,0 +1,85 @@
+INFO:Starting Time 2024-07-07_19:03:08
+INFO:Creating test files at /home/dcs/git/mopshub-readout-sw/tcl_scripts/output_dir/2024-07-07_19:03:08_vivado/
+INFO:Target HW : localhost:3121/xilinx_tcf/Digilent/210299B38601 localhost:3121/xilinx_tcf/Digilent/210319A27ACEA
+INFO:Opening the Target Device : localhost:3121/xilinx_tcf/Digilent/210299B38601
+INFO:Read Campaign data
+REPORT:OPEN /home/dcs/git/mopshub-readout-sw/tcl_scripts/output_dir/2024-07-07_19:03:08_vivado/2024-07-07_19:03:08_hw_xadc_file.csv
+REPORT:OPEN /home/dcs/git/mopshub-readout-sw/tcl_scripts/output_dir/2024-07-07_19:03:08_vivado/2024-07-07_19:03:08_ila_data_file_1.csv
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+INFO:Starting ILA Cores
+REPORT:Update ILA CSV files
+WARNING:KILL reading process
+SUCCESS:End Data collection
+SUCCESS:CLOSE /home/dcs/git/mopshub-readout-sw/tcl_scripts/output_dir/2024-07-07_19:03:08_vivado/2024-07-07_19:03:08_hw_xadc_file.csv
+SUCCESS:CLOSE /home/dcs/git/mopshub-readout-sw/tcl_scripts/output_dir/2024-07-07_19:03:08_vivado/2024-07-07_19:03:08_ila_data_file_1.csv
+INFO:Starting ILA Cores
+INFO:End Time 2024-07-07_19:05:45
+INFO:Time elapsed 157.147 sec
+SUCCESS:CLOSE /home/dcs/git/mopshub-readout-sw/tcl_scripts/output_dir/2024-07-07_19:03:08_vivado/2024-07-07_19:03:08_log_file.txt

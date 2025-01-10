@@ -1,0 +1,295 @@
+SEU Hold Test 	Date: 2024-07-07_15:33:58
+Chip ID: 2
+Shift periode: 2.000s	Clock Frequency: 1000.000Hz
+ADC Intervall: 0.100s
+PSPP monitoring interval: 5.000s	PSPP register interval: 10.000PSPP write interval:30.000
+Time[s]	#SEU_s	#SEU_s 0to1	#SEU_s 1to0	#SEU_t	#SEU_t 0to1	#SEU_t 1to0	SCB error	Comment
+1720359246.489517	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359251.502411	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359256.492278	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359261.502058	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359266.494038	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359271.491134	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359276.497867	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359281.490027	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359286.491182	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359291.493825	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359296.502511	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359301.495009	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359306.503970	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359311.503299	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359316.507922	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359321.499147	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359326.507797	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359331.508939	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359336.494904	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359341.502914	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359346.496581	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359351.504648	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359356.501607	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359361.508432	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359366.500634	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359371.511884	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359376.510222	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359381.513723	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359386.504181	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359391.513568	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359396.507167	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359401.503488	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359406.508728	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359411.518097	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359416.509807	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720359420.068428	1313	0	1313	1313	0	1313	0	SEU occured
+1720359421.510526	1313	0	1313	1313	0	1313	1	SCB read monitoring failed. Not enough data
+1720359422.068363	3282	0	3282	3282	0	3282	0	SEU occured
+1720359424.068113	4970	0	4970	4970	0	4970	0	SEU occured
+1720359426.513723	4970	0	4970	4970	0	4970	1	SCB read monitoring failed. Not enough data
+1720359431.506013	4970	0	4970	4970	0	4970	1	SCB read monitoring failed. Not enough data
+1720359436.514239	4970	0	4970	4970	0	4970	1	SCB read monitoring failed. Not enough data
+1720359441.509213	4970	0	4970	4970	0	4970	1	SCB read monitoring failed. Not enough data
+1720359446.521960	4970	0	4970	4970	0	4970	1	SCB read monitoring failed. Not enough data
+1720359451.512583	4970	0	4970	4970	0	4970	1	SCB read monitoring failed. Not enough data
+1720359456.519956	4970	0	4970	4970	0	4970	1	SCB read monitoring failed. Not enough data
+1720359461.518539	4970	0	4970	4970	0	4970	1	SCB read monitoring failed. Not enough data
+1720359466.525026	4970	0	4970	4970	0	4970	1	SCB read monitoring failed. Not enough data
+1720359471.516386	4970	0	4970	4970	0	4970	1	SCB read monitoring failed. Not enough data
+1720359476.526751	4970	0	4970	4970	0	4970	1	SCB read monitoring failed. Not enough data
+1720359481.526279	4970	0	4970	4970	0	4970	1	SCB read monitoring failed. Not enough data
+1720359486.517889	4970	0	4970	4970	0	4970	1	SCB read monitoring failed. Not enough data
+1720359491.521368	4970	0	4970	4970	0	4970	1	SCB read monitoring failed. Not enough data
+1720359496.521333	4970	0	4970	4970	0	4970	1	SCB read monitoring failed. Not enough data
+1720359501.526319	4970	0	4970	4970	0	4970	1	SCB read monitoring failed. Not enough data
+1720359506.517134	4970	0	4970	4970	0	4970	1	SCB read monitoring failed. Not enough data
+1720359511.526944	4970	0	4970	4970	0	4970	1	SCB read monitoring failed. Not enough data
+1720359516.519011	4970	0	4970	4970	0	4970	1	SCB read monitoring failed. Not enough data
+1720359518.092085	4971	0	4971	4971	0	4971	0	SEU occured
+1720359521.527937	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359526.524956	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359531.530805	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359536.522711	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359541.524627	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359546.526424	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359551.535138	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359556.519730	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359561.524141	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359566.532157	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359571.525318	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359576.534512	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359581.531764	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359586.536829	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359591.529544	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359596.522544	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359601.537230	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359606.529996	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359611.535252	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359616.528790	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359621.525606	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359626.532816	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359631.541117	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359636.537044	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359641.530053	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359646.537788	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359651.538739	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359656.543589	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359661.533929	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359666.538436	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359671.539970	4971	0	4971	4971	0	4971	1	SCB read monitoring failed. Not enough data
+1720359674.133723	6751	0	6751	6751	0	6751	0	SEU occured
+1720359676.136403	8156	0	8156	8156	0	8156	0	SEU occured
+1720359676.546908	8156	0	8156	8156	0	8156	1	SCB read monitoring failed. Not enough data
+1720359678.139013	9748	0	9748	9748	0	9748	0	SEU occured
+1720359681.539742	9748	0	9748	9748	0	9748	1	SCB read monitoring failed. Not enough data
+1720359686.545017	9748	0	9748	9748	0	9748	1	SCB read monitoring failed. Not enough data
+1720359691.539796	9748	0	9748	9748	0	9748	1	SCB read monitoring failed. Not enough data
+1720359696.540300	9748	0	9748	9748	0	9748	1	SCB read monitoring failed. Not enough data
+1720359701.549006	9748	0	9748	9748	0	9748	1	SCB read monitoring failed. Not enough data
+1720359706.552630	9748	0	9748	9748	0	9748	1	SCB read monitoring failed. Not enough data
+1720359711.548203	9748	0	9748	9748	0	9748	1	SCB read monitoring failed. Not enough data
+1720359716.545661	9748	0	9748	9748	0	9748	1	SCB read monitoring failed. Not enough data
+1720359721.554213	9748	0	9748	9748	0	9748	1	SCB read monitoring failed. Not enough data
+1720359726.539077	9748	0	9748	9748	0	9748	1	SCB read monitoring failed. Not enough data
+1720359731.543108	9748	0	9748	9748	0	9748	1	SCB read monitoring failed. Not enough data
+1720359736.549534	9748	0	9748	9748	0	9748	1	SCB read monitoring failed. Not enough data
+1720359741.542368	9748	0	9748	9748	0	9748	1	SCB read monitoring failed. Not enough data
+1720359746.542023	9748	0	9748	9748	0	9748	1	SCB read monitoring failed. Not enough data
+1720359751.547759	9748	0	9748	9748	0	9748	1	SCB read monitoring failed. Not enough data
+1720359754.163347	9749	1	9748	9749	1	9748	0	SEU occured
+1720359756.556277	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359761.550021	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359766.545991	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359771.552648	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359776.544739	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359781.546398	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359786.549650	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359791.558370	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359796.551345	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359801.549066	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359806.554390	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359811.547336	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359816.562924	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359821.551552	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359826.560022	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359831.552904	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359836.564464	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359841.556360	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359846.564803	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359851.553725	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359856.553550	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359861.561621	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359866.556500	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359871.555537	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359876.561804	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359881.569266	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359886.565630	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359891.571924	9749	1	9748	9749	1	9748	1	SCB read monitoring failed. Not enough data
+1720359896.205362	11250	1	11249	11250	1	11249	0	SEU occured
+1720359896.567970	11250	1	11249	11250	1	11249	1	SCB read monitoring failed. Not enough data
+1720359898.206316	12749	1	12748	12749	1	12748	0	SEU occured
+1720359900.201648	14343	1	14342	14343	1	14342	0	SEU occured
+1720359901.559757	14343	1	14342	14343	1	14342	1	SCB read monitoring failed. Not enough data
+1720359902.203626	15749	1	15748	15749	1	15748	0	SEU occured
+1720359904.206358	17062	1	17061	17062	1	17061	0	SEU occured
+1720359906.203192	18655	1	18654	18655	1	18654	0	SEU occured
+1720359906.569358	18655	1	18654	18655	1	18654	1	SCB read monitoring failed. Not enough data
+1720359908.197726	20063	1	20062	20063	1	20062	0	SEU occured
+1720359910.207663	21654	1	21653	21654	1	21653	0	SEU occured
+1720359911.567415	21654	1	21653	21654	1	21653	1	SCB read monitoring failed. Not enough data
+1720359912.210257	23062	1	23061	23062	1	23061	0	SEU occured
+1720359914.209744	24749	1	24748	24749	1	24748	0	SEU occured
+1720359916.208712	26436	1	26435	26436	1	26435	0	SEU occured
+1720359916.575400	26436	1	26435	26436	1	26435	1	SCB read monitoring failed. Not enough data
+1720359918.211438	27843	1	27842	27843	1	27842	0	SEU occured
+1720359920.210013	29248	1	29247	29248	1	29247	0	SEU occured
+1720359921.566495	29248	1	29247	29248	1	29247	1	SCB read monitoring failed. Not enough data
+1720359922.205791	31028	1	31027	31028	1	31027	0	SEU occured
+1720359924.211594	32431	1	32430	32431	1	32430	0	SEU occured
+1720359926.215157	33557	1	33556	33557	1	33556	0	SEU occured
+1720359926.562379	33557	1	33556	33557	1	33556	1	SCB read monitoring failed. Not enough data
+1720359928.213979	34963	1	34962	34963	1	34962	0	SEU occured
+1720359930.213793	36463	1	36462	36463	1	36462	0	SEU occured
+1720359931.569624	36463	1	36462	36463	1	36462	1	SCB read monitoring failed. Not enough data
+1720359932.211727	37871	1	37870	37871	1	37870	0	SEU occured
+1720359934.219595	39652	1	39651	39652	1	39651	0	SEU occured
+1720359936.211568	41713	1	41712	41713	1	41712	0	SEU occured
+1720359936.562061	41713	1	41712	41713	1	41712	1	SCB read monitoring failed. Not enough data
+1720359938.212680	43589	1	43588	43589	1	43588	0	SEU occured
+1720359940.209510	44995	1	44994	44995	1	44994	0	SEU occured
+1720359941.564647	44995	1	44994	44995	1	44994	1	SCB read monitoring failed. Not enough data
+1720359942.203135	46401	1	46400	46401	1	46400	0	SEU occured
+1720359944.215037	48180	1	48179	48180	1	48179	0	SEU occured
+1720359946.217465	49589	1	49588	49589	1	49588	0	SEU occured
+1720359946.565656	49589	1	49588	49589	1	49588	1	SCB read monitoring failed. Not enough data
+1720359948.224538	51088	1	51087	51088	1	51087	0	SEU occured
+1720359950.221944	53056	1	53055	53056	1	53055	0	SEU occured
+1720359951.574108	53056	1	53055	53056	1	53055	1	SCB read monitoring failed. Not enough data
+1720359952.221101	54649	1	54648	54649	1	54648	0	SEU occured
+1720359954.218018	56429	1	56428	56429	1	56428	0	SEU occured
+1720359956.218807	58117	1	58116	58117	1	58116	0	SEU occured
+1720359956.567712	58117	1	58116	58117	1	58116	1	SCB read monitoring failed. Not enough data
+1720359958.218670	59617	1	59616	59617	1	59616	0	SEU occured
+1720359960.220034	61491	1	61490	61491	1	61490	0	SEU occured
+1720359961.567470	61491	1	61490	61491	1	61490	1	SCB read monitoring failed. Not enough data
+1720359962.228352	63083	1	63082	63083	1	63082	0	SEU occured
+1720359964.225989	64677	1	64676	64677	1	64676	0	SEU occured
+1720359966.572429	64677	1	64676	64677	1	64676	1	SCB read monitoring failed. Not enough data
+1720359971.580180	64677	1	64676	64677	1	64676	1	SCB read monitoring failed. Not enough data
+1720359976.572708	64677	1	64676	64677	1	64676	1	SCB read monitoring failed. Not enough data
+1720359981.571795	64677	1	64676	64677	1	64676	1	SCB read monitoring failed. Not enough data
+1720359986.576385	64677	1	64676	64677	1	64676	1	SCB read monitoring failed. Not enough data
+1720359991.570074	64677	1	64676	64677	1	64676	1	SCB read monitoring failed. Not enough data
+1720359996.577241	64677	1	64676	64677	1	64676	1	SCB read monitoring failed. Not enough data
+1720360001.578526	64677	1	64676	64677	1	64676	1	SCB read monitoring failed. Not enough data
+1720360006.581062	64677	1	64676	64677	1	64676	1	SCB read monitoring failed. Not enough data
+1720360011.573580	64677	1	64676	64677	1	64676	1	SCB read monitoring failed. Not enough data
+1720360016.583264	64677	1	64676	64677	1	64676	1	SCB read monitoring failed. Not enough data
+1720360021.575971	64677	1	64676	64677	1	64676	1	SCB read monitoring failed. Not enough data
+1720360026.574404	64677	1	64676	64677	1	64676	1	SCB read monitoring failed. Not enough data
+1720360031.581454	64677	1	64676	64677	1	64676	1	SCB read monitoring failed. Not enough data
+1720360036.573722	64677	1	64676	64677	1	64676	1	SCB read monitoring failed. Not enough data
+1720360041.582585	64677	1	64676	64677	1	64676	1	SCB read monitoring failed. Not enough data
+1720360046.577102	64677	1	64676	64677	1	64676	1	SCB read monitoring failed. Not enough data
+1720360051.573441	64677	1	64676	64677	1	64676	1	SCB read monitoring failed. Not enough data
+1720360056.578316	64677	1	64676	64677	1	64676	1	SCB read monitoring failed. Not enough data
+1720360060.245866	65227	1	65226	65227	1	65226	0	SEU occured
+1720360061.587275	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360066.574181	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360071.576518	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360076.583641	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360081.591724	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360086.584824	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360091.582197	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360096.588655	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360101.580956	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360106.592372	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360111.578406	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360116.579247	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360121.587790	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360126.581079	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360131.590642	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360136.585911	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360141.593133	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360146.586804	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360151.594625	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360156.588416	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360161.585539	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360166.590473	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360171.599353	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360176.595961	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360181.587172	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360186.596609	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360191.590594	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360196.586886	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360201.593491	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360206.602622	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360211.596827	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360216.588828	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360221.605107	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360226.592352	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360231.600837	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360236.595113	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360241.598971	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360246.599800	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360251.607053	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360256.606894	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360261.598557	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360266.603587	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360271.594854	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360276.604953	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360281.597006	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360286.608374	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360291.600808	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360296.601540	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360301.605020	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360306.611049	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360311.605524	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360316.614296	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360321.611770	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360326.601710	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360331.610625	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360336.605268	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360341.606530	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360346.610073	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360351.617769	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360356.610883	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360361.618119	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360366.618950	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360371.608044	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360376.618511	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360381.611335	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360386.615944	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360391.615657	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360396.607548	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360401.615508	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360406.609398	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360411.620691	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360416.614121	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360421.621136	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360426.613956	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360431.624520	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360436.620888	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360441.628508	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360446.612620	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360451.619235	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360456.626389	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360461.617392	65227	1	65226	65227	1	65226	1	SCB read monitoring failed. Not enough data
+1720360466.532133	65227	1	65226	65227	1	65226	0	End of Test

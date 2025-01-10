@@ -1,0 +1,8 @@
+INFO:Starting Time 2024-07-07_14:02:36
+INFO:Creating test files at /home/dcs/git/mopshub-readout-sw/tcl_scripts/output_dir/2024-07-07_14:02:36_vivado/
+INFO:Target HW : localhost:3121/xilinx_tcf/Digilent/210299B38601 localhost:3121/xilinx_tcf/Digilent/210319A27ACEA
+INFO:Opening the Target Device : localhost:3121/xilinx_tcf/Digilent/210319A27ACEA
+INFO:Read Campaign data
+REPORT:OPEN /home/dcs/git/mopshub-readout-sw/tcl_scripts/output_dir/2024-07-07_14:02:36_vivado/2024-07-07_14:02:36_hw_xadc_file.csv
+REPORT:OPEN /home/dcs/git/mopshub-readout-sw/tcl_scripts/output_dir/2024-07-07_14:02:36_vivado/2024-07-07_14:02:36_ila_data_file_1.csv
+INFO:Starting ILA Cores

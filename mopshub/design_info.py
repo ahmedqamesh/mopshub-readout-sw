@@ -1,5 +1,11 @@
-
-
+########################################################
+"""
+    This file is part of the MOPS-Hub project.
+    Author: Ahmed Qamesh (University of Wuppertal)
+    email: ahmed.qamesh@cern.ch  
+    Date: 01.05.2023
+"""
+########################################################
 from mopshub.logger_main import Logger 
 from mopshub.analysis_utils import AnalysisUtils
 import logging

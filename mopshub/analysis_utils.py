@@ -1,3 +1,11 @@
+########################################################
+"""
+    This file is part of the MOPS-Hub project.
+    Author: Ahmed Qamesh (University of Wuppertal)
+    email: ahmed.qamesh@cern.ch  
+    Date: 01.05.2023
+"""
+########################################################
 from __future__ import division
 import logging
 import os
@@ -135,6 +143,7 @@ class AnalysisUtils(object):
         #Extract day and hour from timestamp
         data_frame['day'] = data_frame['TimeStamp'].dt.date
         data_frame['hour'] = data_frame['TimeStamp'].dt.hour
+        data_frame['minutes'] = data_frame['TimeStamp'].dt.minute
         return data_frame
    
     def getDay(self,TimeStamps =None, device = None): 
@@ -194,36 +203,64 @@ class AnalysisUtils(object):
         return consecutive_repeats, repeats, new_array
 
 
-    def getHours(self,TimeStamps, min_scale =None, device = None):
+    def getHours(self,TimeStamps, min_scale =None, device = None, full_minutes = None):
         hour = 0
         unique_hours = []
+        unique_minutes = []
+        unique_minutes_full = [False] * 60  # Initialize a list with 60 False values
         last_hour = None
         hours = [[""]*1 for i in range(len(TimeStamps))]
+        last_minute = None
         for TimeStamp in TimeStamps:
             if device == "cic_card":
-                if min_scale == "min_scale" : hours[hour] = TimeStamp[14] + TimeStamp[15] #14+15 for min 
-                else: hours[hour] = TimeStamp[11] + TimeStamp[12] #11+12 for hours
-            
+                if min_scale == "min_scale" : 
+                    current_stamp = TimeStamp[14:16] 
+                    hours[hour] = current_stamp 
+                    if current_stamp != last_minute:
+                        unique_minutes.append(int(current_stamp))
+                        last_minute = current_stamp   
+                else: 
+                    current_stamp = TimeStamp[11:13]
+                    hours[hour] =current_stamp#11+12 for hours
+                    if current_stamp != last_hour:
+                        unique_hours.append(int(current_stamp))
+                        last_hour = current_stamp   
+                        
             if device == "power_card":
-                if min_scale == "min_scale" : hours[hour] = TimeStamp[14] + TimeStamp[15] #14+15 for min 
+                if min_scale == "min_scale" : 
+                    hours[hour] = TimeStamp[14] + TimeStamp[15] #14+15 for min 
                 else: 
                     #try:
                     current_stamp = TimeStamp[11:13]
                     hours[hour] =current_stamp#11+12 for hours  
                     if current_stamp != last_hour:
                         unique_hours.append(int(current_stamp))
-                        last_hour = current_stamp   
+                        last_hour = current_stamp    
                     #except:
                     #    pass
             if device == "fpga_card":
                 #hours[hour] = TimeStamp[0] + TimeStamp[1] #11+12 for hours
                 TimeStamp = str(TimeStamp)            
-                current_stamp = TimeStamp[11] + TimeStamp[12]
-                hours[hour] =current_stamp#11+12 for hours  
-                if current_stamp != last_hour:
-                    unique_hours.append(int(current_stamp))
-                    last_hour = current_stamp  
-                                    
+                if min_scale == "min_scale" : 
+                    current_stamp = TimeStamp[14:16] 
+                    hours[hour] = current_stamp 
+                    if current_stamp != last_minute:
+                        minute_index = int(current_stamp)
+                        unique_minutes_full[minute_index] = minute_index
+                        unique_minutes.append(minute_index)
+                        last_minute = current_stamp   
+                    
+                    current_hr_stamp = TimeStamp[11] + TimeStamp[12]
+                    hours[hour] =current_hr_stamp#11+12 for hours  
+                    if current_hr_stamp != last_hour:
+                        unique_hours.append(int(current_hr_stamp))
+                        last_hour = current_hr_stamp  
+                else:
+                    current_stamp = TimeStamp[11] + TimeStamp[12]
+                    hours[hour] =current_stamp#11+12 for hours  
+                    if current_stamp != last_hour:
+                        unique_hours.append(int(current_stamp))
+                        last_hour = current_stamp                 
             else:
                 if min_scale == "min_scale" : hours[hour] = TimeStamp[14] + TimeStamp[15] #14+15 for min 
                 else: 
@@ -236,29 +273,44 @@ class AnalysisUtils(object):
                     #except:
                     #    pass
             hour += 1
-        return hours, unique_hours
+        if full_minutes : unique_minutes = unique_minutes_full
+        return hours, unique_hours, unique_minutes
     
 
 
-    def get_hourly_average_value(self,data_frame = None, column = None,unique_days = None, device = None,n_points =1 ):
+    def get_hourly_average_value(self,data_frame = None, column = None,unique_days = None, device = None,min_scale = None, counts =None ):
         hourlyAverageValues = []
         hourlySTDValues = []
-        data_for_day_hour = self.get_data_for_day_hour(data_frame = data_frame, device = device)
+        data_frame= self.get_data_for_day_hour(data_frame = data_frame, device = device)
+        hours, unique_hours, unique_minutes  = AnalysisUtils().getHours(TimeStamps = data_frame.Times, min_scale =min_scale, device = "fpga_card")
         for target_day in unique_days:
-            condition = (data_for_day_hour['day'] == pd.to_datetime(target_day))
-            data = data_for_day_hour[condition]
-            data = data.apply(pd.to_numeric, errors='coerce')
-            interval = pd.cut(data['hour'], bins=n_points)
-            hourly_avg = data.groupby('hour').agg('mean')
-            hourly_std = data.groupby('hour').agg('std')
-            #hourly_avg = data.groupby(['hour', interval]).agg('mean')
-            #hourly_std = data.groupby(['hour', interval]).agg('std')
+            condition = (data_frame['day'] == pd.to_datetime(target_day))
+            day_data = data_frame[condition]
+            day_data = day_data.apply(pd.to_numeric, errors='coerce')
+            if min_scale == "min_scale":   
+                for target_hour in unique_hours:
+                    #print(day_hour_data)
+                    if counts:  hourly_avg = day_data.groupby(['hour', 'minutes']).transform(lambda x: (x == 1).sum())
+                    else: hourly_avg = day_data.groupby(['hour', 'minutes']).agg('mean')
+                    hourly_std = day_data.groupby(['hour', 'minutes']).agg('std')
+            else:
+                interval = pd.cut(day_data['hour'], bins=1)
+                
+                hourly_avg = day_data.groupby('hour').agg('mean')
+                hourly_std = day_data.groupby('hour').agg('std')
+                
             
+                #hourly_avg = data.groupby(['hour', interval]).agg('mean')
+                #hourly_std = data.groupby(['hour', interval]).agg('std')
+
+            #print(target_day, "target_day")
             for hour, avg_value in hourly_avg.iterrows():
+                
                 hourlyAverageValues = np.append(hourlyAverageValues, avg_value[column])
             for hour, std_value in hourly_std.iterrows():
                 hourlySTDValues = np.append(hourlySTDValues, std_value[column])        
-        return hourlyAverageValues, hourlySTDValues
+        
+        return hourlyAverageValues, hourlySTDValues,data_frame
     
 
     def getHourlyAverageValue(self,hours =None, data =None, min_scale =None, unique_hours = None,unique_days = None):
@@ -281,4 +333,23 @@ class AnalysisUtils(object):
             else:  
                 hourlyAverageValues[hour] = None
         return hourlyAverageValues
-             
+
+
+    def combine_csv_files(self, *input_files):
+        # Extract the directory from the first input file
+        
+        directory = os.path.dirname(input_files[0])
+        output_file = os.path.join(directory, 'combined.csv')
+        
+        # Read the first file to get the header
+        combined_df = pd.read_csv(input_files[0],skipfooter=2, engine='python')
+    
+        # Read and append the remaining files
+        for file in input_files[1:]:
+            df = pd.read_csv(file,skipfooter=2, engine='python')
+            combined_df = pd.concat([combined_df, df], ignore_index=True)
+        # Write the combined DataFrame to a new CSV file
+        combined_df.to_csv(output_file, index=False)
+        
+        # Ensure the first column (timestamp) is formatted correctly
+        return combined_df             

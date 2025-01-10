@@ -1,3 +1,11 @@
+########################################################
+"""
+    This file is part of the MOPS-Hub project.
+    Author: Ahmed Qamesh (University of Wuppertal)
+    email: ahmed.qamesh@cern.ch  
+    Date: 29.08.2023
+"""
+########################################################
 # -*- coding: utf-8 -*-
 import sys
 from matplotlib.backends.qt_compat import  QtWidgets

@@ -1,3 +1,11 @@
+########################################################
+"""
+    This file is part of the MOPS-Hub project.
+    Author: Ahmed Qamesh (University of Wuppertal)
+    email: ahmed.qamesh@cern.ch  
+    Date: 29.08.2023
+"""
+########################################################
 #!/bin/env python
 import math
 import random # For randint
@@ -184,7 +192,7 @@ def test_uhal_wrapper(bus = None,nodeId = None):
                                                                                             out_msg =True)
     print(data_point, reqmsg, requestreg, respmsg,responsereg , status)
 
-    # #  # PS. To visualise the data, Users can use the file $HOME/test_files/plot_adc.py
+    # # PS. To visualise the data, Users can use the file $HOME/test_files/plot_adc.py
 if __name__ == '__main__':
     # PART 1: Argument parsing
     wrapper = UHALWrapper(load_config = True)
@@ -195,12 +203,12 @@ if __name__ == '__main__':
     bus = 0
     voltage_control = [0x01,0x03,0x0F,0x33,0x3F,0xC3,0xCF,0xF3,0xFF]
     nodeIds = [0]
-    bus_range = [0,1]#,1,2,3,4,5,6]
+    bus_range = [0]#,1,2,3,4,5,6]
     flush_mopshub_fifo()
     #test_uhal_wrapper(bus = bus,nodeId = NodeIds[0])
     #power On/off the bus
-    #power_control(bus = bus_range,voltage_control = [voltage_control[1]])
-    read_adc_iterations(bus_range =bus_range,nodeIds = nodeIds,seu_test =True)
+    power_control(bus = bus_range,voltage_control = [voltage_control[1]])
+    #read_adc_iterations(bus_range =bus_range,nodeIds = nodeIds,seu_test =False)
     #read_mon_values(bus = 1)
     #conf_mon_values(bus = 1)
     #Test Uart

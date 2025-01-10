@@ -1,24 +1,23 @@
 # 1) Open a TCL Shell using vivado -mode tcl
 # 2) source this script
-#vivado -mode batch -source tcl
-# Get the current time in the desired format
-set time_now [clock format [clock seconds] -format "%Y-%m-%d_%H:%M:%S"]
-set time_start [clock clicks -millisec]
+#vivado -mode tcl
 # Get the full path of the currently running script
 set script_path [file normalize [info script]]
 # Extract the directory path from the script path
 set root_dir [file dirname $script_path]
 # Set the root directory as the current working directory
 cd $root_dir
-set project_name "mopshub_board_v3TMR"
+#set project_name "mopshub_board_v3TMR"
 
-set vivado_project_path     "/home/dcs/git/mopshub/vivado/mopshub_v3TMR"
-set bitstream_file 	    "$vivado_project_path/$project_name/$project_name.runs/impl_1/${project_name}_wrapper.bit"
-set ila_probe_file 	    "$vivado_project_path/$project_name/$project_name.runs/impl_1/${project_name}_wrapper.ltx"
-set bitstream_golden_file   "$vivado_project_path/$project_name/$project_name.runs/${project_name}_wrapper_golden.bit"
-set bitstream_fallback_file "$vivado_project_path/$project_name/$project_name.runs/${project_name}_wrapper_fallback.bit"
+#set vivado_project_path     "/home/dcs/git/mopshub/vivado/mopshub_v3TMR"
+#set bitstream_golden_file   "$vivado_project_path/$project_name/$project_name.runs/${project_name}_wrapper_golden.bit"
 
-set vivado_ip_out_path  $root_dir/output_dir/${time_now}_vivado_configure/
+set project_name "mopshub_board_seu"
+
+set vivado_project_path     "/home/dcs/git/mopshub/vivado/mopshub_seu"
+set bitstream_golden_file   "$vivado_project_path/$project_name/$project_name.runs/${project_name}_sem_wrapper_fallback.bit"
+
+
 
 # Define a procedure for printing information with special formatting
 proc specialPrint {level message} {
@@ -68,39 +67,44 @@ specialPrint "REPORT" "Access $::bitstream_golden_file"
 set size_of_golden_bitstream_bytes [file size $bitstream_golden_file ]
 set size_of_golden_bitstream_Mbytes [expr {$size_of_golden_bitstream_bytes/1000000}]
 set size_of_feedback_bitstream_bytes [file size $bitstream_golden_file]
-# Start address of the bitstreams
-set start_address_of_first_bitstream 0x000000
-set end_address_of_first_bitstream [expr {$start_address_of_first_bitstream + $size_of_golden_bitstream_bytes}]
 
-set start_address_of_second_bitstream_hex [format "0x00%X" $end_address_of_first_bitstream]
-set end_address_of_second_bitstream [expr {$start_address_of_second_bitstream_hex + $size_of_feedback_bitstream_bytes}]
+# Initialize start address of the first bitstream
+set start_address 0x000000
+# Define the number of bitstreams
+set num_bitstreams 8
 
-set start_address_of_third_bitstream_hex [format "0x00%X" $end_address_of_second_bitstream]
-set end_address_of_third_bitstream [expr {$start_address_of_third_bitstream_hex + $size_of_feedback_bitstream_bytes}]
+# Loop through each bitstream
+for {set i 1} {$i <= $num_bitstreams} {incr i} {
+    if {$i == 1} {
+        set size_of_current_bitstream $size_of_golden_bitstream_bytes
+    } else {
+        set size_of_current_bitstream $size_of_feedback_bitstream_bytes
+    }
+    
+    # Calculate the end address for the current bitstream
+    set end_address [expr {$start_address + $size_of_current_bitstream}]
+    
+    # Convert start and end addresses to hexadecimal format
+    set start_address_hex [format "0x00%X" $start_address]
+    set end_address_hex [format "0x00%X" $end_address]
+    
+    # Print addresses
+    #specialPrint "SUCCESS"   "Bitstream $i:"
+    #specialPrint "REPORT"   "Start address: $start_address_hex"
+    put "set_property BITSTREAM.CONFIG.NEXT_CONFIG_ADDR $end_address_hex"
 
-set start_address_of_forth_bitstream_hex [format "0x00%X" $end_address_of_third_bitstream]
-set end_address_of_forth_bitstream [expr {$start_address_of_forth_bitstream_hex + $size_of_feedback_bitstream_bytes}]
-
-set start_address_of_fifth_bitstream_hex [format "0x00%X" $end_address_of_forth_bitstream]
-set end_address_of_fifth_bitstream [expr {$start_address_of_fifth_bitstream_hex + $size_of_feedback_bitstream_bytes}]
-
+    # Update start address for the next bitstream
+    set start_address $end_address
+}
 
 # Extract Memory information
 # Size of a sector in bytes
 set sector_size_bytes [expr {4 * 1024}]  ;# 4 KB
 # Calculate the number of sectors each bitstream occupies
 set sectors_per_bitstream [expr {$size_of_golden_bitstream_bytes / $sector_size_bytes}]
-# Calculate the start and end addresses for the sectors occupied by the bitstream
-set start_address_of_first_bitstream_sector $start_address_of_first_bitstream
-set end_address_of_first_bitstream_sector [expr {$size_of_golden_bitstream_bytes + ($sectors_per_bitstream) * $sector_size_bytes}]
-
 
 specialPrint "REPORT"  "Bitstream file size: $size_of_golden_bitstream_Mbytes  Mbytes"
-
 # Display the start address of the bitstreams
 specialPrint "REPORT" "Sectors per bitstream: $sectors_per_bitstream"
-#specialPrint "REPORT" "First Bitstream sectors =$sectors_per_bitstream : $start_address_of_first_bitstream_sector & $end_address_of_first_bitstream_sector"
-specialPrint "REPORT" "start_address_of_second_bitstream_hex =  $start_address_of_second_bitstream_hex"
-specialPrint "REPORT" "start_address_of_third_bitstream_hex =  $start_address_of_third_bitstream_hex"
-specialPrint "REPORT" "start_address_of_forth_bitstream_hex =  $start_address_of_forth_bitstream_hex"
 specialPrint "SUCCESS" "Closing the script"	
+#write_cfgmem  -format mcs -size 16 -interface SPIx4 -loadbit {up 0x00000000 "/home/dcs/git/mopshub/vivado/mopshub_seu/mopshub_board_seu/mopshub_board_seu.runs/mopshub_board_seu_sem_WD/mopshub_board_seu_WD_golden.bit" up 0x001A49CC "/home/dcs/git/mopshub/vivado/mopshub_seu/mopshub_board_seu/mopshub_board_seu.runs/mopshub_board_seu_sem_WD/mopshub_board_seu_sem_WD_wrapper_fallback.bit" up 0x00349398 "/home/dcs/git/mopshub/vivado/mopshub_seu/mopshub_board_seu/mopshub_board_seu.runs/mopshub_board_seu_sem_WD/mopshub_board_seu_sem_WD_wrapper_fallback.bit" up 0x004EDD64 "/home/dcs/git/mopshub/vivado/mopshub_seu/mopshub_board_seu/mopshub_board_seu.runs/mopshub_board_seu_sem_WD/mopshub_board_seu_sem_WD_wrapper_fallback.bit" up 0x00692730 "/home/dcs/git/mopshub/vivado/mopshub_seu/mopshub_board_seu/mopshub_board_seu.runs/mopshub_board_seu_sem_WD/mopshub_board_seu_sem_WD_wrapper_fallback.bit" up 0x008370FC "/home/dcs/git/mopshub/vivado/mopshub_seu/mopshub_board_seu/mopshub_board_seu.runs/mopshub_board_seu_sem_WD/mopshub_board_seu_sem_WD_wrapper_fallback.bit" up 0x009DBAC8 "/home/dcs/git/mopshub/vivado/mopshub_seu/mopshub_board_seu/mopshub_board_seu.runs/mopshub_board_seu_sem_WD/mopshub_board_seu_sem_WD_wrapper_fallback.bit" up 0x00B80494 "/home/dcs/git/mopshub/vivado/mopshub_seu/mopshub_board_seu/mopshub_board_seu.runs/mopshub_board_seu_sem_WD/mopshub_board_seu_sem_WD_wrapper_fallback.bit" } -checksum -force -file "/home/dcs/git/mopshub/vivado/mopshub_seu/mopshub_board_seu/mopshub_board_seu.runs/mopshub_board_seu_sem_WD/mopshub_board_seu_sem_WD_wrapper.mcs"

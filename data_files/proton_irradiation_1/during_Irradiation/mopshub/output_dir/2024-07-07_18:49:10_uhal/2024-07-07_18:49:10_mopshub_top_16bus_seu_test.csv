@@ -1,0 +1,5 @@
+Times,elabsed_time,test_tx,bus_id,nodeId,adc_ch,index,sub_index,adc_data,adc_data_converted,reqmsg,requestreg,respmsg,responsereg,status
+2024-07-07_18:49:21,10.844459772109985,1,0,0,34,0x2400,32,None,None,1,0x600402400200000000000000,0,None,0
+2024-07-07_18:49:32,21.712442636489868,1,0,0,34,0x2400,32,None,None,1,0x600402400200000000000000,0,None,0
+2024-07-07_18:49:43,32.545419692993164,1,0,0,34,0x2400,32,None,None,1,0x600402400200000000000000,0,None,0
+2024-07-07_18:49:10,34.3300838470459,1,None,None,None,None,None,None,None,None,None,None,None,End of Test

@@ -2,10 +2,11 @@
 # 2) source this script
 set verbose off
 # Get the current time in the desired format
-set time_now [clock format [clock seconds] -format "%Y-%m-%d_%H:%M:%S"]
+set time_now [clock format [clock seconds] -format "%Y-%m-%d_%H_%M_%S"]
 set time_start [clock clicks -millisec]
-set project_name "mopshub_board_v3TMR"
-set vivado_project_path "/home/dcs/git/mopshub/Vivado/$project_name"
+set project_name "mopshub_board_v2"
+set vivado_proj_name "mopshub_v2"
+set vivado_project_path "/home/dcs/git/mopshub/vivado/$vivado_proj_name"
 set expectedProjectPath "$vivado_project_path/$project_name/$project_name.xpr"
 set ila_data "$vivado_project_path/$project_name/$project_name.hw/backup/hw_ila_data_1.ila"
 set ltx_file_path "$vivado_project_path/$project_name/$project_name.runs/impl_1/debug_nets.ltx"
@@ -103,8 +104,8 @@ proc update_ila_cores {} {
 
     set ila_instance hw_ila_1
     set probe_name status_heartbeat
-    run_hw_ila [get_hw_ilas -of_objects $hw_device -filter {CELL_NAME=~"mopshub_board_v2TMR_i/ila_0"}]
-    wait_on_hw_ila [get_hw_ilas -of_objects $hw_device -filter {CELL_NAME=~"mopshub_board_v2TMR_i/ila_0"}]
+    run_hw_ila [get_hw_ilas -of_objects $hw_device -filter {CELL_NAME=~"mopshub_board_v2_i/ila_0"}]
+    wait_on_hw_ila [get_hw_ilas -of_objects $hw_device -filter {CELL_NAME=~"mopshub_board_v2_i/ila_0"}]
     #display_hw_ila_data [upload_hw_ila_data [get_hw_ilas -of_objects $hw_device -filter {CELL_NAME=~"mopshub_board_v2TMR_i/ila_0"}]]
     display_hw_ila_data
 
@@ -176,9 +177,11 @@ proc read_data_campaign {end_time} {
 	set fileId0 [open $::full_ila_out_file_1 "w"]
 	puts -nonewline $fileId0 "Times"
 	puts -nonewline $fileId0 ","
-	puts -nonewline $fileId0 "Sample"
+	puts -nonewline $fileId0 "Buffer"
 	puts -nonewline $fileId0 ","
 	puts -nonewline $fileId0 "Window"
+	puts -nonewline $fileId0 ","
+	puts -nonewline $fileId0 "Trigger"
 	puts -nonewline $fileId0 ","
 	puts -nonewline $fileId0 "heartbeat"
 	puts -nonewline $fileId0 ","
@@ -266,7 +269,7 @@ proc read_data_campaign {end_time} {
 	    # Split the last line into its individual components
 	    set last_line_components [split $last_ila_line ","]
 	    if {[lindex $last_line_components 4]} {
-		specialPrint "DATA" "time: $loop_time | heartbeat: [lindex $last_line_components 4] | observation: [lindex $last_line_components 6]| correction: [lindex $last_line_components 7]"
+		specialPrint "DATA" "time: $loop_time | heartbeat: [lindex $last_line_components 4] | observation: [lindex $last_line_components 6]| correction: [lindex $last_line_components 7]| essential: [lindex $last_line_components 10]| uncorrectable: [lindex $last_line_components 11]"
 	    }
 	}
 	# Close both files

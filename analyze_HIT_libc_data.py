@@ -1,3 +1,11 @@
+########################################################
+"""
+    This file is part of the MOPS-Hub project.
+    Author: Ahmed Qamesh (University of Wuppertal)
+    email: ahmed.qamesh@cern.ch  
+    Date: 01.05.2023
+"""
+########################################################
 import sys
 import os
 from validators import length
@@ -32,7 +40,7 @@ data_dir = rootdir+"/data_files/"
 path = os.path.abspath('') + '/'
 logger.info('current working path: '+path)
 
-def calculate_HIT_parameters(segma_litrature =None, pp3_fluence = None,n_bits = None,n_seu = None):#segma_litrature[/cm^2/bit] & pp3_fluence [/cm^2/pp]& n_bits [per device]
+def calculate_HIT_parameters(segma_litrature =None, pp3_fluence = None,n_bits = None,n_seu = None, exp_fluence = None):#segma_litrature[/cm^2/bit] & pp3_fluence [/cm^2/pp]& n_bits [per device]
     """
     Calculate parameters related to Single-Event Upset (SEU) rates and fluence.
 
@@ -46,12 +54,15 @@ def calculate_HIT_parameters(segma_litrature =None, pp3_fluence = None,n_bits = 
         list: SEU time in hours for each intensity value.
     """
     logger.report(f"Literature value for SEU cross section = {segma_litrature}") 
-    pp3_fluence = pp3_fluence* 40e+6
+    pp3_fluence = pp3_fluence* 40e+6*3.14e+7
     n_seu_expected = segma_litrature * pp3_fluence *n_bits
-    logger.report(f"SEUs expected at PP3 [fluence ={pp3_fluence} /cm^2] = {n_seu_expected}") 
+    logger.report(f"N SEUs expected at PP3 [fluence = {'{:.2e}'.format(pp3_fluence)} /cm^2] = {n_seu_expected}") 
+    exp_sigma = n_seu /(exp_fluence * n_bits)
+    logger.report(f"Experimental Sigma [fluence = {exp_fluence} in {n_bits} bits SR]= {'{:.2e}'.format(exp_sigma)}/cm^2") 
+    
     #Fluence: The number of particles per area, given in [cm^-2].
     needed_fluence = n_seu /(segma_litrature * n_bits)
-    logger.report(f"Facility fluence [SEUs = {n_seu}in {n_bits} bits SR]= {'{:.2e}'.format(needed_fluence)}/cm^2") 
+    logger.report(f"Facility fluence [SEUs = {n_seu} in {n_bits} bits SR]= {'{:.2e}'.format(needed_fluence)}/cm^2") 
     
     # the intensity or flux of radiant energy is the power transferred per unit area (flux = fluence * time)
     intensity = [8.0e+07,1.2e+08 ,2.0e+08 ,3.2e+08 ,4.0e+08, 6.0e+08, 8.0e+08, 1.2e+09 ,2.0e+09 ,3.2e+09 ,4.0e+09 ,6.0e+09, 8.0e+09, 1.2e+10, 2.0e+10]
@@ -59,8 +70,9 @@ def calculate_HIT_parameters(segma_litrature =None, pp3_fluence = None,n_bits = 
     for i in intensity:
         seu_time = needed_fluence/i
         seu_time_hr = np.append(seu_time_hr,seu_time/(60*60))
-        #logger.report(f"Time for 20 SEUs @ intensity {'{:.2e}'.format(i)} P/s ={round(seu_time, 3)} s[{round(seu_time/(60*60), 4)} hrs]")
-    return seu_time_hr
+        #logger.report(f"Time for {n_seu} SEUs @ intensity {'{:.2e}'.format(i)} P/s ={round(seu_time, 3)} s[{round(seu_time/(60*60), 4)} hrs]")
+    #for s in seu_time_hr: print (f" & {round(s, 3)}", end='')
+    return seu_time_hr,needed_fluence
 
     
 def plot_HIT_parameters(file_path=None, ylim=4000, text_enable=True,PdfPages =None):
@@ -117,8 +129,8 @@ def plot_HIT_parameters(file_path=None, ylim=4000, text_enable=True,PdfPages =No
     ax2.ticklabel_format(useOffset=False)
     ax2.grid(True)
     ax2.legend(loc="upper left")
-    ax2.set_ylabel("Beam spot size FWHM (mm)")
-    ax2.set_xlabel("Energy (MeV/u)")
+    ax2.set_ylabel("Beam spot size FWHM ([mm])")
+    ax2.set_xlabel("Energy ([MeV/u])")
     #ax2.set_xlim([0, 260])
     if text_enable: ax2.set_title("FWHM for 255 Energies at HIT (proton beam)")  
     plt.tight_layout()
@@ -133,39 +145,62 @@ def plot_HIT_parameters(file_path=None, ylim=4000, text_enable=True,PdfPages =No
     fig3, ax3 = plt.subplots()
     for index, row in data_frame.iterrows():
         Intensity = row.iloc[8:]
-    for seu in np.arange(10,100,10):
-        seu_time_hr_array = calculate_HIT_parameters(segma_litrature =6.99e-15, pp3_fluence = 2e-7,n_bits = 3e+3,n_seu = seu)
-        
+    n_seu_array = np.arange(10,110,10)
+    needed_fluence = []
+    for seu in n_seu_array:
+        seu_time_hr_array,_fluence  = calculate_HIT_parameters(segma_litrature =3.75e-15, pp3_fluence = 2e-7,n_bits = 3e+3,n_seu = seu, exp_fluence = 2e-7)
+        needed_fluence = np.append(needed_fluence, _fluence)
         spline = interpolate.splrep(Intensity, seu_time_hr_array, s=10, k=2)  # create spline interpolation
         xnew = np.linspace(np.min(Intensity), np.max(Intensity), num=50, endpoint=True)
         spline_eval = interpolate.splev(xnew, spline)  # evaluate spline
         
         ax3.errorbar(Intensity,seu_time_hr_array, yerr=0.0, fmt='o', markerfacecolor='black', markeredgecolor="black")
         ax3.plot(Intensity,seu_time_hr_array,label=f'{seu} SEUs')
-        
+
     ax3.ticklabel_format(useOffset=False)
     ax3.grid(True)
     ax3.legend(loc="upper right")
-    ax3.set_ylabel("Time needed (hr)")
-    ax3.set_xlabel("Beam Intensity (Proton/s)")
+    ax3.set_ylabel("Time needed [h]")
+    ax3.set_xlabel("Beam Intensity [Proton/s]")
     #ax3.set_xlim([0, 260])
     if text_enable: ax3.set_title("Time Needed for N SEUs at different intensities (proton beam)")  
     plt.tight_layout()
-    plt.xscale('log')
-    plt.savefig(file_path[:-4]+"_seu_time_intensity.pdf", bbox_inches='tight')
+    ax3.set_xscale('log')
+    fig3.savefig(file_path[:-4]+"_seu_time_intensity.pdf", bbox_inches='tight')
     logger.success("Saving information to "+file_directory)   
     ax3.set_title("Time Needed for N SEUs at different intensities (proton beam)")
     plt.tight_layout()  
     PdfPages.savefig()
     plt.clf()    
-
+    
+    logger.info("Plot SEU vs Expected Fluence at HIT")
+    fig4, ax4 = plt.subplots()
+    ax4.errorbar(n_seu_array,needed_fluence, yerr=0.0, fmt='o', markerfacecolor='black', markeredgecolor="black")
+    ax4.plot(n_seu_array,needed_fluence,label=f'SEUs')
+    ax4.ticklabel_format(useOffset=False)
+    ax4.grid(True)
+    ax4.legend(loc="upper left")
+    ax4.set_xlabel("N. SEUs")
+    ax4.set_ylabel("Needed Fluence [/cm^2]")
+    #ax4.set_xlim([0, 260])
+    if text_enable: ax4.set_title("Time Needed for N SEUs at different intensities (proton beam)")  
+    plt.tight_layout()
+    #ax4.set_xscale('log')
+    fig4.savefig(file_path[:-4]+"_seu_expected_fluence.pdf", bbox_inches='tight')
+    logger.success("Saving information to "+file_directory)   
+    ax4.set_title("Time Needed for N SEUs at different intensities (proton beam)")
+    plt.tight_layout()  
+    PdfPages.savefig()
+    plt.clf()    
+            
 # Main function
 if __name__ == '__main__':    
     PdfPages = PdfPages(output_dir+'HIT_libc_data.pdf')
     logger.success("Opening PDF file:"+output_dir+'HIT_libc_data.pdf')
-    basic_tests = ["1.4 p V11"]     
+    basic_tests = ["1.4 p V11"]    
+    seu_time_hr,needed_fluence = calculate_HIT_parameters(segma_litrature =6.99e-15, pp3_fluence = 2e-7,n_bits =  3e+3,n_seu = 4, exp_fluence =  4e11) 
     for t in basic_tests:
-        seu_time_hr = calculate_HIT_parameters(segma_litrature =6.99e-15, pp3_fluence = 2e-7,n_bits = 3e+3,n_seu = 20)
+        seu_time_hr,needed_fluence = calculate_HIT_parameters(segma_litrature =6.99e-15, pp3_fluence = 2e-7,n_bits = 3e+3,n_seu = 100, exp_fluence = 2e-7)
         logging.info("Plot HIT-libc_data", t)
         file_path = data_dir + "HIT_libc_data/LIBC HIT Version " + t + ".txt"
         plot_HIT_parameters(file_path=file_path,

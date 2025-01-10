@@ -1,0 +1,15 @@
+SEU Hold Test 	Date: 2024-07-07_18:49:04
+Chip ID: 2
+Shift periode: 2.000s	Clock Frequency: 1000.000Hz
+ADC Intervall: 0.100s
+PSPP monitoring interval: 5.000s	PSPP register interval: 10.000PSPP write interval:30.000
+Time[s]	#SEU_s	#SEU_s 0to1	#SEU_s 1to0	#SEU_t	#SEU_t 0to1	#SEU_t 1to0	SCB error	Comment
+1720370951.770329	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720370956.777703	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720370961.770645	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720370966.779086	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720370971.778209	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720370976.767955	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720370981.782429	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720370986.771297	0	0	0	0	0	0	1	SCB read monitoring failed. Not enough data
+1720370989.138749	0	0	0	0	0	0	0	End of Test

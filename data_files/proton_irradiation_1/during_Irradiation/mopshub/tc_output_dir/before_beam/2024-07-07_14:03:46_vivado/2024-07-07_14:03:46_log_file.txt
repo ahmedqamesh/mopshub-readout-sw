@@ -1,0 +1,2 @@
+INFO:Starting Time 2024-07-07_14:03:46
+INFO:Creating test files at /home/dcs/git/mopshub-readout-sw/tcl_scripts/output_dir/2024-07-07_14:03:46_vivado/
